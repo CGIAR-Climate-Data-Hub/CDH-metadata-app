@@ -905,6 +905,19 @@ TEMPORAL CADENCE NOTE: daily/monthly/annual cadence belongs in the YAML dimensio
 block, not in this form. Mention it in text; the user adds it to the YAML.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FORM CONTEXT PROTOCOL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Each user message may end with a [CURRENT FORM STATE] block — a JSON snapshot of
+fields the user has already filled in the form. When this block is present:
+  • NEVER overwrite those values in your <fill> block unless the user explicitly
+    asks you to correct them.
+  • Use them as context to infer and fill the MISSING fields only.
+  • If the user says "fill the rest" or "complete the metadata", read the snapshot,
+    identify what is missing, and emit a <fill> block for those fields only.
+  • If the snapshot has id/title/keywords, you can infer the dataset identity and
+    suggest values for description, bbox, temporal, license, citation, etc.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SKILL KNOWLEDGE BASE FOLLOWS BELOW
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `;
@@ -1492,6 +1505,29 @@ function applyFill(text) {
   return true;
 }
 
+// ── Form snapshot injected into every API call ──────────────────────────────────
+function getFormSnapshot() {
+  const fd = collect();
+  const snap = {};
+  if (fd.id)                snap.id          = fd.id;
+  if (fd.title)             snap.title        = fd.title;
+  if (fd.description)       snap.description  = fd.description;
+  if (fd.license)           snap.license      = fd.license;
+  if (fd.version)           snap.version      = fd.version;
+  if (fd.keywords?.length)  snap.keywords     = fd.keywords.join(', ');
+  if (fd.note)              snap.note         = fd.note;
+  if (fd.doi)               snap.doi          = fd.doi;
+  if (fd.series?.name)      snap.series_name  = fd.series.name;
+  if (fd.spatial?.bbox)     snap.bbox         = fd.spatial.bbox;
+  if (fd.spatial?.geography) snap.geography   = fd.spatial.geography;
+  if (fd.temporal)          snap.temporal     = fd.temporal;
+  if (fd.domains?.length)   snap.domains      = fd.domains;
+  if (fd.contact?.length)   snap.contacts_count  = fd.contact.length;
+  if (fd.data?.length)      snap.data_assets_count = fd.data.length;
+  if (Object.keys(snap).length === 0) return '';
+  return `\n\n[CURRENT FORM STATE — already filled by the user. Do NOT overwrite these unless explicitly asked. Fill only the missing fields.]\n${JSON.stringify(snap, null, 2)}`;
+}
+
 async function sendChat() {
   if (busy) return;
   const inp = document.getElementById('chat-inp');
@@ -1521,8 +1557,16 @@ async function sendChat() {
       addMsg('assistant', '⚙ Please enter your OpenRouter API key in Settings first.');
       return;
     }
-    // Keep only the last 12 messages to avoid hitting context/payload limits
+    // Trim history, then inject live form snapshot into the last user message for context.
+    // The snapshot is sent to the API but never stored in chatHistory (so display stays clean).
     const trimmed = chatHistory.slice(-12);
+    const snapshot = getFormSnapshot();
+    const apiMessages = snapshot && trimmed.length > 0
+      ? [
+          ...trimmed.slice(0, -1),
+          { role: 'user', content: trimmed[trimmed.length - 1].content + snapshot }
+        ]
+      : trimmed;
 
     let res;
     try {
@@ -1536,7 +1580,7 @@ async function sendChat() {
         },
         body: JSON.stringify({
           model: getModel(),
-          messages: [{ role:'system', content:SYS }, ...trimmed],
+          messages: [{ role:'system', content:SYS }, ...apiMessages],
           max_tokens: 1024,
           temperature: 0.3,
         })

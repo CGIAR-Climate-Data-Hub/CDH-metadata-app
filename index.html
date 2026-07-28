@@ -113,36 +113,44 @@
     .field { margin-bottom: 12px; }
     .field:last-child { margin-bottom: 0; }
     label {
-      display: block; font-size: 11px; font-weight: 700; color: var(--muted);
+      display: block; font-size: 11px; font-weight: 600; color: var(--muted);
       text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px;
-      transition: color .35s ease;
+      transition: color .4s ease;
     }
+    /* Asterisk: red glow when empty, green glow when filled */
     label.req::after {
-      content: " *"; color: var(--red);
-      transition: color .35s ease;
+      content: " *";
+      color: var(--red);
+      text-shadow: 0 0 7px rgba(185,28,28,.35);
+      transition: color .4s ease, text-shadow .4s ease;
     }
-    /* When the field container is filled: label + asterisk transition to green */
-    .field.filled label { color: var(--green); }
-    .field.filled label.req::after { color: var(--green-light); }
+    .field.filled label {
+      color: var(--green);
+    }
+    .field.filled label.req::after {
+      color: var(--green) !important;
+      text-shadow: 0 0 7px rgba(26,107,58,.35) !important;
+    }
 
     input, select, textarea {
       width: 100%; padding: 7px 10px; border: 1px solid var(--border);
       border-radius: 7px; font-size: 13px; font-family: inherit;
       background: #fff; color: var(--text); outline: none;
-      transition: border-color .2s, box-shadow .2s;
+      transition: border-color .25s, box-shadow .25s, background .25s;
     }
     input:focus, select:focus, textarea:focus {
       border-color: var(--green);
       box-shadow: 0 0 0 3px rgba(26,107,58,.1);
     }
-    /* Subtle tint on filled inputs — intentionally light so it doesn't dominate */
+    /* Filled state: left accent bar via inset shadow + faint green tint */
     input.filled, select.filled, textarea.filled {
-      border-color: rgba(26,107,58,.25);
-      background: #fafffe;
+      border-color: rgba(26,107,58,.3);
+      background: #f6fbf7;
+      box-shadow: inset 3px 0 0 rgba(26,107,58,.5);
     }
     input.filled:focus, select.filled:focus, textarea.filled:focus {
       border-color: var(--green);
-      box-shadow: 0 0 0 3px rgba(26,107,58,.08);
+      box-shadow: inset 3px 0 0 rgba(26,107,58,.5), 0 0 0 3px rgba(26,107,58,.1);
     }
     textarea { resize: vertical; }
     .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }

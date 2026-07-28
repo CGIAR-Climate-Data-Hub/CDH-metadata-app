@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CDH Metadata Generator</title>
+  <style>
+    :root {
+      --green:       #1a6b3a;
+      --green-light: #2d8c52;
+      --green-dark:  #0f4524;
+      --green-faint: #e8f5e9;
+      --accent:      #4caf50;
+      --bg:          #f0f4f1;
+      --surface:     #ffffff;
+      --surface2:    #f7faf7;
+      --border:      #cdddd0;
+      --text:        #1a2a1e;
+      --muted:       #5a7060;
+      --red:         #c62828;
+      --code-bg:     #1a2a1e;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13.5px;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--green-dark);
+      color: #fff;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,.35);
+    }
+    .hd-left { display: flex; align-items: center; gap: 10px; }
+    .logo {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: var(--accent); display: flex; align-items: center;
+      justify-content: center; font-weight: 800; font-size: 14px; color: #fff;
+    }
+    header h1 { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+    header h1 small { font-size: 11px; opacity: .55; margin-left: 4px; }
+    .hd-right { display: flex; gap: 8px; }
+
+    /* ── Layout ── */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Form panel ── */
+    .form-panel {
+      flex: 0 0 58%;
+      overflow-y: auto;
+      padding: 16px;
+      background: var(--bg);
+    }
+
+    /* ── Sections ── */
+    .sec {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .sec-hd {
+      padding: 11px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      transition: background .15s;
+    }
+    .sec-hd:hover { background: var(--surface2); }
+    .sec-title {
+      font-size: 12.5px; font-weight: 600; color: var(--text);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sec-icon {
+      width: 26px; height: 26px; border-radius: 6px;
+      background: var(--green-faint); color: var(--green);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600;
+      letter-spacing: .15px;
+    }
+    .req   { background: #fef2f2; color: var(--red); }
+    .opt   { background: var(--green-faint); color: var(--green); }
+    .chev  {
+      width: 16px; height: 16px; color: var(--muted);
+      transition: transform .2s; flex-shrink: 0;
+    }
+    .sec.open .chev { transform: rotate(180deg); }
+    .sec-body {
+      padding: 14px; border-top: 1px solid var(--border); display: none;
+    }
+    .sec.open .sec-body { display: block; }
+
+    /* ── Fields ── */
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+    label {
+      display: block; font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px;
+      transition: color .35s ease;
+    }
+    label.req::after {
+      content: " *"; color: var(--red);
+      transition: color .35s ease;
+    }
+    /* When the field container is filled: label + asterisk transition to green */
+    .field.filled label { color: var(--green); }
+    .field.filled label.req::after { color: var(--green-light); }
+
+    input, select, textarea {
+      width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+      border-radius: 7px; font-size: 13px; font-family: inherit;
+      background: #fff; color: var(--text); outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(26,107,58,.1);
+    }
+    /* Subtle tint on filled inputs — intentionally light so it doesn't dominate */
+    input.filled, select.filled, textarea.filled {
+      border-color: rgba(26,107,58,.25);
+      background: #fafffe;
+    }
+    input.filled:focus, select.filled:focus, textarea.filled:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(26,107,58,.08);
+    }
+    textarea { resize: vertical; }
+    .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+
+    /* ── Chip checkboxes ── */
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 11px; cursor: pointer;
+      font-size: 12px; transition: all .15s;
+    }
+    .chip:hover  { border-color: var(--green); background: var(--green-faint); }
+    .chip.on     { background: var(--green); color: #fff; border-color: var(--green); }
+    .chip input  { display: none; }
+
+    /* ── Dynamic lists ── */
+    .dyn-list { display: flex; flex-direction: column; gap: 8px; }
+    .card {
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; background: var(--surface2); position: relative;
+    }
+    .card-rm {
+      position: absolute; top: 7px; right: 8px;
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 15px; padding: 2px 5px; border-radius: 4px;
+    }
+    .card-rm:hover { background: #ffebee; color: var(--red); }
+    .add-row {
+      display: flex; align-items: center; gap: 6px;
+      border: 1.5px dashed var(--border); background: none; border-radius: 7px;
+      padding: 7px 12px; font-size: 12px; color: var(--muted); cursor: pointer;
+      font-family: inherit; font-weight: 500; width: 100%;
+      transition: all .15s; margin-top: 6px;
+    }
+    .add-row:hover { background: var(--green-faint); border-color: var(--green); color: var(--green); }
+
+    /* ── Tip box ── */
+    .tip {
+      font-size: 11.5px; color: #78450f; background: #fffbeb;
+      border: 1px solid #fde68a; border-left: 3px solid #f59e0b;
+      border-radius: 6px; padding: 7px 10px; margin-bottom: 10px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer;
+      font-size: 12.5px; font-weight: 500; font-family: inherit;
+      transition: all .15s; display: inline-flex; align-items: center; gap: 6px;
+      letter-spacing: -.1px;
+    }
+    .btn svg { flex-shrink: 0; }
+    .btn-primary  { background: var(--green); color: #fff; }
+    .btn-primary:hover  { background: var(--green-light); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: rgba(255,255,255,.8); border: 1px solid rgba(255,255,255,.2); }
+    .btn-ghost:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .btn-outline  { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .btn-outline:hover  { background: var(--green-faint); color: var(--green); border-color: var(--green); }
+    .btn-success  { background: var(--green); color: #fff; }
+    .btn-success:hover  { background: var(--green-dark); }
+
+    /* ── Chat drawer (fixed overlay, slides in from right) ── */
+    .chat-panel {
+      position: fixed;
+      top: 54px;
+      right: 0;
+      bottom: 34px;
+      width: 420px;
+      max-width: 92vw;
+      display: flex; flex-direction: column;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      box-shadow: -8px 0 32px rgba(0,0,0,.12);
+      transform: translateX(100%);
+      transition: transform .3s cubic-bezier(.4,0,.2,1);
+      z-index: 200;
+    }
+    .chat-panel.open { transform: translateX(0); }
+
+    /* ── Drawer toggle tab ── */
+    .chat-tab {
+      position: fixed;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 201;
+      background: var(--green);
+      color: rgba(255,255,255,.92);
+      border: none;
+      cursor: pointer;
+      padding: 18px 7px;
+      border-radius: 10px 0 0 10px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      font-family: inherit; font-size: 9.5px; font-weight: 700;
+      letter-spacing: .9px; text-transform: uppercase;
+      box-shadow: -3px 0 14px rgba(0,0,0,.18);
+      transition: background .15s, right .3s cubic-bezier(.4,0,.2,1), color .15s;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+    .chat-tab:hover { background: var(--green-light); color: #fff; }
+    .chat-tab.open  { right: 420px; background: var(--green-dark); color: #fff; }
+    .chat-tab .tab-icon { writing-mode: horizontal-tb; opacity: .85; }
+
+    /* Form panel fills full width; shifts right when chat drawer opens */
+    .form-panel {
+      flex: 0 0 100%;
+      transition: padding-right .3s cubic-bezier(.4,0,.2,1);
+    }
+    .form-panel.shifted { padding-right: 436px; }
+
+    .chat-hd {
+      padding: 11px 14px; border-bottom: 1px solid var(--border);
+      background: var(--surface2); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .chat-hd h2 { font-size: 13px; font-weight: 600; color: var(--green); }
+    .chat-hd small { font-size: 11px; color: var(--muted); }
+    .ai-pill {
+      background: var(--green); color: #fff; font-size: 10px;
+      padding: 2px 7px; border-radius: 10px; font-weight: 700;
+    }
+    .chat-msgs {
+      flex: 1; overflow-y: auto; padding: 14px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .msg { display: flex; gap: 7px; max-width: 96%; }
+    .msg.user      { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.assistant { align-self: flex-start; }
+    .avatar {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700;
+    }
+    .msg.user      .avatar { background: var(--green); color: #fff; }
+    .msg.assistant .avatar { background: var(--green-faint); color: var(--green); border: 1px solid var(--border); }
+    .bubble {
+      padding: 9px 12px; border-radius: 12px;
+      font-size: 13px; line-height: 1.58;
+    }
+    .msg.user .bubble {
+      background: var(--green); color: #fff;
+      border-radius: 12px 2px 12px 12px;
+    }
+    .msg.assistant .bubble {
+      background: var(--green-faint); border: 1px solid var(--border);
+      border-radius: 2px 12px 12px 12px;
+    }
+    /* Markdown rendering inside assistant bubbles */
+    .bubble strong { font-weight: 700; }
+    .bubble em { font-style: italic; }
+    .bubble code {
+      font-family: "Cascadia Code","JetBrains Mono","Fira Code",monospace;
+      font-size: 11.5px; background: rgba(0,0,0,.07);
+      padding: 1px 5px; border-radius: 4px; word-break: break-all;
+    }
+    .msg.user .bubble code { background: rgba(255,255,255,.22); color: inherit; }
+    .bubble ol, .bubble ul { margin: 5px 0 5px 18px; padding: 0; }
+    .bubble li { margin: 3px 0; line-height: 1.55; }
+    .bubble br + br { display: none; } /* collapse double blank lines */
+    .fill-notice {
+      font-size: 11px; color: #2e7d32; font-weight: 600; margin-top: 5px;
+      padding: 3px 8px; background: #e8f5e9; border-radius: 5px;
+      border: 1px solid #a5d6a7; display: inline-block;
+    }
+    .typing {
+      display: none; align-items: center; gap: 4px; padding: 6px 12px;
+      background: var(--green-faint); border-radius: 12px;
+      border: 1px solid var(--border); width: fit-content;
+      margin: 0 14px 8px;
+    }
+    .typing.show { display: flex; }
+    .dot {
+      width: 5px; height: 5px; background: var(--green);
+      border-radius: 50%; animation: hop 1.2s infinite;
+    }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes hop {
+      0%,80%,100% { transform: translateY(0); }
+      40%          { transform: translateY(-5px); }
+    }
+    .chat-foot {
+      padding: 10px 14px; border-top: 1px solid var(--border);
+      background: var(--surface2); flex-shrink: 0;
+    }
+    .chat-row { display: flex; gap: 7px; }
+    .chat-inp {
+      flex: 1; border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 11px; font-size: 13px; resize: none; font-family: inherit;
+      background: #fff; outline: none; transition: border-color .2s;
+    }
+    .chat-inp:focus { border-color: var(--green); }
+
+    /* ── Status bar ── */
+    .status-bar {
+      background: var(--surface2); border-top: 1px solid var(--border);
+      padding: 6px 18px; display: flex; align-items: center;
+      justify-content: space-between; font-size: 11.5px;
+      color: var(--muted); flex-shrink: 0;
+    }
+
+    /* ── YAML Modal ── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      display: none; align-items: center; justify-content: center; z-index: 999;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border-radius: 12px;
+      width: 82%; max-width: 820px; max-height: 88vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 24px 60px rgba(0,0,0,.3);
+    }
+    .modal-hd {
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-hd h3 { font-size: 14px; font-weight: 600; }
+    .modal-body { flex: 1; overflow: auto; }
+    .yaml-pre {
+      background: var(--code-bg); color: #a8d8a8;
+      font-family: "Cascadia Code", "Fira Code", "Courier New", monospace;
+      font-size: 12px; line-height: 1.65; padding: 18px;
+      white-space: pre; overflow-x: auto; min-height: 200px;
+    }
+    .modal-ft {
+      padding: 12px 18px; border-top: 1px solid var(--border);
+      display: flex; gap: 8px; justify-content: flex-end;
+    }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="hd-left">
+    <div class="logo">CDH</div>
+    <h1>Metadata Generator <small>v0.2.0</small></h1>
+  </div>
+  <div class="hd-right">
+    <button class="btn btn-ghost" onclick="clearAll()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      Clear
+    </button>
+    <button class="btn btn-success" onclick="openModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Generate YAML
+    </button>
+  </div>
+</header>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- ── Form Panel ─────────────────────────────────────────────────────────── -->
+  <div class="form-panel">
+
+    <!-- Core -->
+    <div class="sec open" id="s-core">
+      <div class="sec-hd" onclick="tog('core')">
+        <div class="sec-title">
+          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          Core Identity <span class="badge req">Required</span>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="sec-body">
+        <div class="grid2">
+          <div class="field">
+            <label class="req" for="f-id">ID</label>
+            <input id="f-id" placeholder="my-dataset-slug" />
+            <div class="hint">Lowercase, digits, hyphens only</div>
+          </div>
+          <div class="field">
+            <label for="f-rtype">Resource Type</label>
+            <select id="f-rtype">
+              <option value="dataset">dataset</option>
+              <option value="software">software</option>
+              <option value="service">service</option>
+              <option value="document">document</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label class="req" for="f-title">Title</label>
+          <input id="f-title" placeholder="Human-readable dataset title" />
+        </div>
+        <div class="field">
+          <label class="req" for="f-desc">Description</label>
+          <textarea id="f-desc" rows="4" placeholder="2–5 sentences: what it contains, how it was produced, units, key caveats."></textarea>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label class="req" for="f-lic">License</label>
+            <select id="f-lic" onchange="toggleCustomLic()">
+              <option value="">— select —</option>
+              <option>CC-BY-4.0</option>
+              <option>CC-BY-SA-4.0</option>
+              <option>CC0-1.0</option>
+              <option>CC-BY-NC-4.0</option>
+              <option>ODbL-1.0</option>
+              <option value="_custom">Custom…</option>
+            </select>
+            <input id="f-lic-custom" placeholder="Custom license string" style="display:none;margin-top:6px" />
+          </div>
+          <div class="field">
+            <label for="f-ver">Version</label>
+            <input id="f-ver" placeholder="v1.0, 2020, v2r2…" />
+          </div>
+        </div>
+        <div class="field">
+          <label class="req" for="f-kw">Keywords</label>
+          <input id="f-kw" placeholder="gridded, precipitation, rainfall  (comma-separated)" />
+          <div class="hint">At least one required</div>
+        </div>
+        <div class="field">
+          <label for="f-note">Note / Caveats</label>
+          <textarea id="f-note" rows="2" placeholder="Optional: interpretation-critical remarks or usage warnings"></textarea>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="f-sname">Series Name</label>
+            <input id="f-sname" placeholder="MapSPAM, GLW, CHIRPS…" />
+          </div>
+          <div class="field">
+            <label for="f-surl">Series URL</label>
+            <input id="f-surl" type="url" placeholder="https://…" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contacts -->
+    <div class="sec open" id="s-contacts">
+      <div class="sec-hd" onclick="tog('contacts')">
+        <div class="sec-title">
+          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          Contacts <span class="badge req">Required</span>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="sec-body">
+        <div class="tip">At least one contact must include <strong>licensor</strong> in roles. Every entry must include <strong>organization</strong>.</div>
+        <div class="dyn-list" id="contacts-list"></div>
+        <button class="add-row" onclick="addContact()">+ Add Contact</button>
+      </div>
+    </div>
+
+    <!-- Citation -->
+    <div class="sec open" id="s-citation">
+      <div class="sec-hd" onclick="tog('citation')">
+        <div class="sec-title">
+          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+          Citation &amp; DOI <span class="badge req">At least one</span>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="sec-body">
+        <div class="field">
+          <label for="f-doi">DOI (bare format)</label>
+          <input id="f-doi" placeholder="10.7910/DVN/SWPENT" />
+          <div class="hint">No https://doi.org/ prefix. If provided, citation is optional.</div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label class="req" for="f-cauth">Citation Authors</label>
+            <input id="f-cauth" placeholder="Author One, Author Two, Org Name" />
+            <div class="hint">Comma-separated names or organizations</div>
+          </div>
+          <div class="field">
+            <label class="req" for="f-cdate">Publication Date</label>
+            <input id="f-cdate" placeholder="2024 or 2024-06-15" />
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="f-ctitle">Citation Title</label>
+            <input id="f-ctitle" placeholder="As appears in citation (may differ from record title)" />
+          </div>
+          <div class="field">
+            <label for="f-cpub">Publisher</label>
+            <input id="f-cpub" placeholder="Harvard Dataverse, FAO…" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-curl">Citation URL</label>
+          <input id="f-curl" type="url" placeholder="https://…" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Spatial -->
+    <div class="sec open" id="s-spatial">
+      <div class="sec-hd" onclick="tog('spatial')">
+        <div class="sec-title">
+          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+          Spatial <span class="badge opt">Recommended</span>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="sec-body">
+        <div class="field">
+          <label>Bounding Box — [West, South, East, North]</label>
+          <div class="grid4">
+            <div><input id="f-bw" placeholder="West" /><div class="hint" style="text-align:center">West</div></div>
+            <div><input id="f-bs" placeholder="South" /><div class="hint" style="text-align:center">South</div></div>
+            <div><input id="f-be" placeholder="East" /><div class="hint" style="text-align:center">East</div></div>
+            <div><input id="f-bn" placeholder="North" /><div class="hint" style="text-align:center">North</div></div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="f-crs">CRS</label>
+            <input id="f-crs" placeholder="EPSG:4326" value="EPSG:4326" />
+          </div>
+          <div class="field">
+            <label for="f-geo">Geography</label>
+            <input id="f-geo" placeholder="world, ethiopia, kenya… (comma-separated)" />
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="field">
+            <label for="f-rtype2">Resolution Type</label>
+            <select id="f-rtype2">
+              <option value="">— none —</option>
+              <option value="xy">xy</option>
+              <option value="x">x</option>
+              <option value="y">y</option>
+              <option value="point">point</option>
+              <option value="polygon">polygon</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-rval">Value</label>
+            <input id="f-rval" placeholder="0.08333333" />
+          </div>
+          <div class="field">
+            <label for="f-runit">Unit</label>
+            <input id="f-runit" placeholder="degree, meter…" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-rlabel">Resolution Label</label>
+          <input id="f-rlabel" placeholder="5 arc-minutes (~10 km at equator)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Temporal -->
+    <div class="sec" id="s-temporal">
+      <div class="sec-hd" onclick="tog('temporal')">
+        <div class="sec-title">
+          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+          Temporal <span class="badge opt">Optional</span>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="sec-body">
+        <div class="field" style="margin-bottom:10px">
+          <label>Mode</label>
+          <div style="display:flex;gap:14px;margin-top:4px">
+            <label style="text-transform:none;font-weight:normal;font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer">
+              <input type="radio" name="tmode" value="date" checked onchange="tmode('date')"> Single date / year
+            </label>
+            <label style="text-transform:none;font-weight:normal;font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer">
+              <input type="radio" name="tmode" value="range" onchange="tmode('range')"> Date span
+            </label>
+          </div>
+        </div>
+        <div id="td-date" class="field">
+          <label for="f-tdate">Date / Year</label>
+          <input id="f-tdate" placeholder="2020 or 2020-06-15" />
+          <div class="hint">Any ISO 8601 precision: year (2020), month (2020-06), day</div>
+        </div>
+        <div id="td-range" style="display:none">
+          <div class="grid2">
+            <div class="field">
+              <label for="f-tstart">Start Date</label>
+              <input id="f-tstart" placeholder="2000-01-01" />
+            </div>
+            <div class="field">
+              <label for="f-tend">End Date</label>
+              <input id="f-tend" placeholder="2023-12-31 (blank = open-ended)" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CDH Domain -->
+    <div class="sec open" id="s-cdh">
+      <div class="sec-hd" onclick="tog('cdh')">
+        <div class="sec-title">
+          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
+          CDH Domain <span class="badge req">Required</span>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="sec-body">
+        <div class="field">
+          <label>Domain(s)</label>
+          <div class="chips" id="domains">
+            <div class="chip" onclick="this.classList.toggle('on')"><input value="adaptation">adaptation</div>
+            <div class="chip" onclick="this.classList.toggle('on')"><input value="agricultural-production">agricultural-production</div>
+            <div class="chip" onclick="this.classList.toggle('on')"><input value="boundaries">boundaries</div>
+            <div class="chip" onclick="this.classList.toggle('on')"><input value="climate">climate</div>
+            <div class="chip" onclick="this.classList.toggle('on')"><input value="hydrology">hydrology</div>
+            <div class="chip" onclick="this.classList.toggle('on')"><input value="mitigation">mitigation</div>
+            <div class="chip" onclick="this.classList.toggle('on')"><input value="socioeconomic">socioeconomic</div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label>Not Recommended For</label>
+          <div class="dyn-list" id="nr-list"></div>
+          <button class="add-row" onclick="addNR()">+ Add Restriction</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Assets -->
+    <div class="sec open" id="s-data">
+      <div class="sec-hd" onclick="tog('data')">
+        <div class="sec-title">
+          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+          Data Assets <span class="badge req">Required</span>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="sec-body">
+        <div class="dyn-list" id="data-list"></div>
+        <button class="add-row" onclick="addAsset()">+ Add Data Asset</button>
+      </div>
+    </div>
+
+    <!-- Processing -->
+    <div class="sec" id="s-processing">
+      <div class="sec-hd" onclick="tog('processing')">
+        <div class="sec-title">
+          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></div>
+          Processing / Provenance <span class="badge opt">Optional</span>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="sec-body">
+        <div class="tip">If provided, at least one step must have <strong>id: source</strong>.</div>
+        <div class="dyn-list" id="proc-list"></div>
+        <button class="add-row" onclick="addProc()">+ Add Processing Step</button>
+      </div>
+    </div>
+
+  </div><!-- /form-panel -->
+
+  <!-- ── Chat drawer toggle tab ───────────────────────────────────────────────── -->
+  <button class="chat-tab" id="chat-tab" onclick="toggleChat()" title="Open AI Assistant">
+    <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+    AI
+  </button>
+
+  <!-- ── Chat Panel ──────────────────────────────────────────────────────────── -->
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-hd">
+      <div>
+        <h2>AI Metadata Assistant</h2>
+        <small id="model-label">OpenRouter · nvidia/nemotron-3-ultra-550b-a55b:free</small>
+        <small id="skill-status" style="margin-left:8px;font-size:10px;color:var(--muted)">⏳ Loading skill…</small>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="ai-pill">CDH v0.2.0</span>
+        <button class="btn btn-outline" style="padding:5px 8px" onclick="clearChat()" title="Clear chat history"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+        <button class="btn btn-outline" style="padding:5px 8px" onclick="openSettings()" title="API Settings"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/></svg></button>
+        <button class="btn btn-outline" style="padding:5px 8px" onclick="toggleChat()" title="Close panel"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+    </div>
+
+    <div class="chat-msgs" id="chat-msgs">
+      <div class="msg assistant">
+        <div class="avatar">AI</div>
+        <div>
+          <div class="bubble">
+            Hi! I'm your CDH Metadata Assistant. I can help you fill fields, suggest values, validate entries, and answer questions about the CDH v0.2.0 standard.<br><br>
+            Try: <em>"My dataset is a 5 arc-minute global crop production raster for 2020 by IFPRI, licensed CC-BY-SA-4.0"</em> — I'll pre-fill what I can.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="typing" id="typing">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      <span style="font-size:11.5px;color:var(--muted);margin-left:4px">Thinking…</span>
+    </div>
+
+    <div class="chat-foot">
+      <div class="chat-row">
+        <textarea class="chat-inp" id="chat-inp" rows="2"
+          placeholder="Ask about any field… (Enter = send, Shift+Enter = new line)"
+          onkeydown="chatKey(event)"
+          data-gramm="false" data-gramm_editor="false" spellcheck="false"></textarea>
+        <button class="btn btn-primary" id="send-btn" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ── Status bar ─────────────────────────────────────────────────────────────── -->
+<div class="status-bar">
+  <span id="status">Ready — fill the form or ask the AI for help.</span>
+  <button class="btn btn-outline" style="padding:4px 11px;font-size:11px" onclick="openModal()">Preview YAML</button>
+</div>
+
+<!-- ── YAML Modal ─────────────────────────────────────────────────────────────── -->
+<div class="overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>Generated YAML — CDH Metadata v0.2.0</h3>
+      <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" onclick="closeModal()">✕ Close</button>
+    </div>
+    <div class="modal-body">
+      <pre class="yaml-pre" id="yaml-out"></pre>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="copyYAML()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy
+      </button>
+      <button class="btn btn-success" onclick="dlYAML()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download YAML
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ───────────────────────────────────────────────────────────── -->
+<div class="overlay" id="settings-modal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-hd">
+      <h3>API Settings</h3>
+      <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div class="field">
+        <label class="req" for="s-key">OpenRouter API Key</label>
+        <input id="s-key" type="password" placeholder="sk-or-v1-…" autocomplete="off" />
+        <div class="hint">Get a free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--green)">openrouter.ai/keys</a> — stored only in your browser (localStorage).</div>
+      </div>
+      <div class="field">
+        <label for="s-model">Model</label>
+        <select id="s-model">
+          <option value="nvidia/nemotron-3-ultra-550b-a55b:free">Nvidia Nemotron 3 Ultra 550B (free) ★</option>
+          <option value="cohere/north-mini-code:free">Cohere North Mini Code (free)</option>
+          <option value="inclusionai/ling-3.0-flash:free">Ling 3.0 Flash (free, fast)</option>
+          <option value="poolside/laguna-s-2.1:free">Poolside Laguna S 2.1 (free)</option>
+          <option value="poolside/laguna-xs-2.1:free">Poolside Laguna XS 2.1 (free, small)</option>
+          <option value="_custom">Custom model ID…</option>
+        </select>
+        <div class="hint">Live free models as of July 2026. Check <a href="https://openrouter.ai/models?q=free" target="_blank" style="color:var(--green)">openrouter.ai/models</a> for the latest.</div>
+        <input id="s-model-custom" placeholder="provider/model-name:free" style="display:none;margin-top:6px" />
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeSettings()">Cancel</button>
+      <button class="btn btn-success" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Scripts ────────────────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+<script>
+// ── API config ──────────────────────────────────────────────────────────────────
+// ── OpenRouter config (supports CORS — works on GitHub Pages & locally) ──────────
+const OR_URL   = "https://openrouter.ai/api/v1/chat/completions";
+const OR_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";   // change in ⚙ Settings
+
+function getKey()   { return localStorage.getItem('or_api_key') || ''; }
+function getModel() { return localStorage.getItem('or_model') || OR_MODEL; }
+
+// ── Skill URL (fetched at load from GitHub) ─────────────────────────────────────
+const SKILL_URL = 'https://raw.githubusercontent.com/CGIAR-Climate-Data-Hub/skills/main/.agents/skills/cdh-metadata/SKILL.md';
+
+// ── Browser context — prepended BEFORE the skill so the model reads it first ─────
+const BROWSER_PREFIX = `
+╔═══════════════════════════════════════════════════════╗
+║  BROWSER FORM — OVERRIDE INSTRUCTIONS (read first)   ║
+╚═══════════════════════════════════════════════════════╝
+
+You are a CDH Metadata Assistant embedded in a browser form.
+The skill below is your knowledge base. Apply these overrides before following any skill stage:
+
+STAGE OVERRIDES:
+  Stage 1 (file inspection) → SKIP ENTIRELY. Never ask for a file path. The user
+    works at the dataset/collection level. Jump straight to Stage 2.
+  Stage 2 (collect user inputs) → Ask only for fields you cannot infer. If you already
+    know values from the user's description (e.g. a well-known dataset like CHIRPS or
+    CHIRTS), pre-fill them immediately without asking.
+  Stage 3 (confirm plan) → SKIP. Never show a plan summary table.
+  Stage 4 (generate YAML) → STRICTLY FORBIDDEN. Never write, print, or show any YAML.
+    Never write yaml blocks. The form generates YAML automatically via the "Generate YAML"
+    button. If the user asks for YAML, reply: "Click the Generate YAML button at the top
+    right to download the YAML file."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY — FORM AUTO-FILL PROTOCOL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Every reply where you know ANY field values MUST contain a <fill> block.
+This is the ONLY way the form gets populated. Without it, the form stays empty.
+
+✅ DO THIS — always, even for partial information:
+  Here is what I know about this dataset.
+  <fill>{"id":"chirts-daily-v1.0","title":"CHIRTS-daily","license":"CC-BY-4.0","domain":["climate","agricultural-production"]}</fill>
+  I still need: contact/licensor and data URL.
+
+❌ NEVER DO THESE (form will not auto-fill):
+  • Raw JSON outside tags: {"id":"chirts-daily-v1.0"}
+  • Code blocks: \`\`\`json ... \`\`\`
+  • Bullet/numbered lists of field values
+  • Saying "I have pre-filled X" without an actual <fill> block
+
+FILL FIELD REFERENCE — flat JSON, all strings unless noted:
+  id                  URL-safe slug e.g. "chirts-daily-v1.0"
+  title               human-readable title
+  description         2–5 sentence summary
+  license             SPDX e.g. "CC-BY-4.0"
+  version             e.g. "1.0"
+  keywords            comma-separated e.g. "temperature, daily, global"
+  note                optional caveats
+  series_name / series_url
+  doi                 bare DOI only e.g. "10.25581/CHC.CHIRTS.1.0" — NO https://doi.org/
+  citation_authors    comma-separated e.g. "Funk, Chris, Verdin, Andrew"
+  citation_date       year or date e.g. "2023"
+  citation_title / citation_publisher / citation_url
+  bbox_west / bbox_south / bbox_east / bbox_north   (numbers)
+  crs                 e.g. "EPSG:4326"
+  geography           comma-separated CDH vocab e.g. "world" or "ethiopia, kenya"
+  res_type            "xy" | "x" | "y" | "point" | "polygon"
+  res_value / res_unit / res_label
+  temporal_date       single date/year e.g. "2020" (static datasets)
+  temporal_start      span start e.g. "1983-01-01"
+  temporal_end        span end — omit entirely for open-ended datasets
+  domain              ARRAY e.g. ["climate"] or ["climate","agricultural-production"]
+
+TEMPORAL CADENCE NOTE: daily/monthly/annual cadence belongs in the YAML dimensions[]
+block, not in this form. Mention it in text; the user adds it to the YAML.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SKILL KNOWLEDGE BASE FOLLOWS BELOW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+
+// ── System prompt (loaded async from GitHub, falls back to FILL_INSTRUCTIONS) ───
+let SYS = null;
+
+async function loadSkill() {
+  const statusEl = document.getElementById('skill-status');
+  try {
+    const res = await fetch(SKILL_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const skill = await res.text();
+    SYS = BROWSER_PREFIX + skill;
+    statusEl.textContent = '✓ Skill loaded';
+    statusEl.style.color = 'var(--accent)';
+    console.log('[CDH] Skill loaded from GitHub — system prompt:', SYS.length, 'chars');
+  } catch (err) {
+    console.warn('[CDH] Could not load skill from GitHub:', err.message, '— using built-in fallback');
+    SYS = BROWSER_PREFIX + `You are a CDH Metadata Assistant for the CGIAR Climate Data Hub.
+Follow the CDH metadata standard v0.2.0. Always emit a <fill> block when you know field values.`;
+    statusEl.textContent = '⚠ Offline (built-in skill)';
+    statusEl.style.color = '#f57c00';
+  }
+}
+
+// ── State ───────────────────────────────────────────────────────────────────────
+let chatHistory = [];
+let busy = false;
+let cCnt = 0, nrCnt = 0, aCnt = 0, pCnt = 0;
+
+// ── Section toggle ──────────────────────────────────────────────────────────────
+function tog(id) {
+  document.getElementById('s-' + id).classList.toggle('open');
+}
+
+// ── License custom ──────────────────────────────────────────────────────────────
+function toggleCustomLic() {
+  const v = document.getElementById('f-lic').value;
+  document.getElementById('f-lic-custom').style.display = v === '_custom' ? 'block' : 'none';
+}
+
+// ── Temporal mode ───────────────────────────────────────────────────────────────
+function tmode(m) {
+  document.getElementById('td-date').style.display  = m === 'date'  ? 'block' : 'none';
+  document.getElementById('td-range').style.display = m === 'range' ? 'block' : 'none';
+}
+
+// ── Domain chips ────────────────────────────────────────────────────────────────
+function getDomains() {
+  return [...document.querySelectorAll('#domains .chip.on')].map(c => c.querySelector('input').value);
+}
+function setDomains(arr) {
+  document.querySelectorAll('#domains .chip').forEach(c => {
+    c.classList.toggle('on', arr.includes(c.querySelector('input').value));
+  });
+}
+
+// ── Contacts ────────────────────────────────────────────────────────────────────
+const ROLES = ['licensor','producer','processor','point-of-contact','custodian'];
+function addContact(d = {}) {
+  cCnt++;
+  const i = cCnt;
+  const defRoles = d.roles || (i === 1 ? ['licensor'] : []);
+  document.getElementById('contacts-list').insertAdjacentHTML('beforeend', `
+    <div class="card" id="c-${i}">
+      <button class="card-rm" onclick="rm('c-${i}')">✕</button>
+      <div class="grid2">
+        <div class="field">
+          <label class="req">Organization</label>
+          <input id="c-org-${i}" placeholder="FAO, Alliance of Bioversity…" value="${d.organization||''}" />
+        </div>
+        <div class="field">
+          <label>Name</label>
+          <input id="c-name-${i}" placeholder="Jane Doe (optional)" value="${d.name||''}" />
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Email</label>
+          <input id="c-email-${i}" placeholder="j.doe@cgiar.org" value="${d.email||''}" />
+        </div>
+        <div class="field">
+          <label>URL</label>
+          <input id="c-url-${i}" type="url" placeholder="https://…" value="${d.url||''}" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Roles</label>
+        <div class="chips" id="c-roles-${i}">
+          ${ROLES.map(r=>`<div class="chip${defRoles.includes(r)?' on':''}" onclick="this.classList.toggle('on')"><input value="${r}">${r}</div>`).join('')}
+        </div>
+      </div>
+    </div>`);
+}
+function getContacts() {
+  return [...document.querySelectorAll('#contacts-list .card')].map(el => {
+    const i = el.id.split('-')[1];
+    const org  = V(`c-org-${i}`);
+    const name = V(`c-name-${i}`);
+    const email= V(`c-email-${i}`);
+    const url  = V(`c-url-${i}`);
+    const roles= [...el.querySelectorAll('.chip.on')].map(c=>c.querySelector('input').value);
+    if (!org) return null;
+    const c = { organization: org, roles };
+    if (name)  c.name  = name;
+    if (email) c.email = email;
+    if (url)   c.url   = url;
+    return c;
+  }).filter(Boolean);
+}
+
+// ── Not-recommended ─────────────────────────────────────────────────────────────
+function addNR(d = {}) {
+  nrCnt++;
+  const i = nrCnt;
+  document.getElementById('nr-list').insertAdjacentHTML('beforeend', `
+    <div class="card" id="nr-${i}">
+      <button class="card-rm" onclick="rm('nr-${i}')">✕</button>
+      <div class="field">
+        <label class="req">Use Case to Avoid</label>
+        <input id="nr-u-${i}" placeholder="e.g. field-scale farm management" value="${d.use||''}" />
+      </div>
+      <div class="field">
+        <label class="req">Reason</label>
+        <input id="nr-r-${i}" placeholder="e.g. resolution too coarse" value="${d.reason||''}" />
+      </div>
+      <div class="field">
+        <label>Use Instead</label>
+        <input id="nr-i-${i}" placeholder="e.g. local survey data (optional)" value="${d.use_instead||''}" />
+      </div>
+    </div>`);
+}
+function getNR() {
+  return [...document.querySelectorAll('#nr-list .card')].map(el => {
+    const i = el.id.split('-')[1];
+    const use = V(`nr-u-${i}`), reason = V(`nr-r-${i}`), instead = V(`nr-i-${i}`);
+    if (!use || !reason) return null;
+    const o = { use, reason };
+    if (instead) o.use_instead = instead;
+    return o;
+  }).filter(Boolean);
+}
+
+// ── Data Assets ─────────────────────────────────────────────────────────────────
+const MT = [
+  ['GeoTIFF','image/tiff; application=geotiff'],
+  ['COG (Cloud-Optimized GeoTIFF)','image/tiff; application=geotiff; profile=cloud-optimized'],
+  ['NetCDF','application/netcdf'],
+  ['Zarr v3','application/vnd.zarr; version=3'],
+  ['GeoPackage','application/geopackage+sqlite3'],
+  ['Parquet','application/vnd.apache.parquet'],
+  ['CSV','text/csv'],
+  ['Custom…','_custom'],
+];
+function addAsset(d = {}) {
+  aCnt++;
+  const i = aCnt;
+  const opts = MT.map(([l,v])=>`<option value="${v}"${d.media_type===v?' selected':''}>${l}</option>`).join('');
+  document.getElementById('data-list').insertAdjacentHTML('beforeend', `
+    <div class="card" id="a-${i}">
+      <button class="card-rm" onclick="rm('a-${i}')">✕</button>
+      <div class="grid2">
+        <div class="field">
+          <label class="req">Asset Name</label>
+          <input id="a-n-${i}" placeholder="zarr, cogs, main…" value="${d.name||''}" />
+          <div class="hint">Unique across all assets</div>
+        </div>
+        <div class="field">
+          <label>Media Type</label>
+          <select id="a-mt-${i}" onchange="toggleCMT(${i})">${opts}</select>
+          <input id="a-mtc-${i}" placeholder="Custom media type" style="display:none;margin-top:5px" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="req">URL (HTTPS)</label>
+        <input id="a-url-${i}" type="url" placeholder="https://…" value="${d.url||''}" />
+      </div>
+      <div class="field">
+        <label>URL (S3)</label>
+        <input id="a-s3-${i}" placeholder="s3://bucket/path/" value="${d.s3||''}" />
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>No-Data Value</label>
+          <input id="a-nd-${i}" placeholder="-9999, NaN…" value="${d.nodata!==undefined?d.nodata:''}" />
+        </div>
+        <div class="field">
+          <label>File Size</label>
+          <input id="a-sz-${i}" placeholder="120 MB" value="${d.file_size||''}" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <input id="a-d-${i}" placeholder="Brief description of this asset" value="${d.description||''}" />
+      </div>
+    </div>`);
+}
+function toggleCMT(i) {
+  const v = document.getElementById(`a-mt-${i}`).value;
+  document.getElementById(`a-mtc-${i}`).style.display = v === '_custom' ? 'block' : 'none';
+}
+function getAssets() {
+  return [...document.querySelectorAll('#data-list .card')].map(el => {
+    const i = el.id.split('-')[1];
+    const name = V(`a-n-${i}`), url = V(`a-url-${i}`), s3 = V(`a-s3-${i}`);
+    let mt = document.getElementById(`a-mt-${i}`)?.value;
+    if (mt === '_custom') mt = V(`a-mtc-${i}`);
+    const nd = V(`a-nd-${i}`), sz = V(`a-sz-${i}`), desc = V(`a-d-${i}`);
+    if (!name && !url) return null;
+    const a = { name: name || 'data', locations: [] };
+    if (url) a.locations.push({ url, title: 'HTTPS' });
+    if (s3)  a.locations.push({ url: s3, title: 'S3' });
+    if (desc) a.description = desc;
+    if (mt && mt !== '_custom') a.media_type = mt;
+    if (nd !== '') a.nodata = isNaN(nd) ? nd : Number(nd);
+    if (sz) a.file_size = sz;
+    return a;
+  }).filter(Boolean);
+}
+
+// ── Processing Steps ────────────────────────────────────────────────────────────
+function addProc(d = {}) {
+  pCnt++;
+  const i = pCnt;
+  document.getElementById('proc-list').insertAdjacentHTML('beforeend', `
+    <div class="card" id="p-${i}">
+      <button class="card-rm" onclick="rm('p-${i}')">✕</button>
+      <div class="grid2">
+        <div class="field">
+          <label class="req">Step ID</label>
+          <input id="p-id-${i}" placeholder="source, cloud-optimize…" value="${d.id||''}" />
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input id="p-dt-${i}" placeholder="2024-01-15" value="${d.date||''}" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <input id="p-dc-${i}" placeholder="What was done?" value="${d.description||''}" />
+      </div>
+      <div class="field">
+        <label>Source URL (derived_from)</label>
+        <input id="p-src-${i}" type="url" placeholder="https://…" value="${d.source_url||''}" />
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Code URL</label>
+          <input id="p-cu-${i}" type="url" placeholder="https://github.com/…" value="${d.code_url||''}" />
+        </div>
+        <div class="field">
+          <label>Code Version</label>
+          <input id="p-cv-${i}" placeholder="git hash or tag" value="${d.code_version||''}" />
+        </div>
+      </div>
+    </div>`);
+}
+function getProcs() {
+  return [...document.querySelectorAll('#proc-list .card')].map(el => {
+    const i = el.id.split('-')[1];
+    const id  = V(`p-id-${i}`), dt = V(`p-dt-${i}`), dc = V(`p-dc-${i}`);
+    const src = V(`p-src-${i}`), cu = V(`p-cu-${i}`), cv = V(`p-cv-${i}`);
+    if (!id) return null;
+    const s = { id };
+    if (dc) s.description = dc;
+    if (dt) s.date = dt;
+    if (src) s.derived_from = [{ url: src }];
+    if (cu)  s.code = { url: cu, ...(cv ? { version: cv } : {}) };
+    return s;
+  }).filter(Boolean);
+}
+
+function rm(id) { document.getElementById(id)?.remove(); }
+const V = id => document.getElementById(id)?.value?.trim() || '';
+
+// ── YAML generation ─────────────────────────────────────────────────────────────
+function collect() {
+  const lic = document.getElementById('f-lic').value;
+  const license = lic === '_custom' ? V('f-lic-custom') : lic;
+
+  const tRadio = document.querySelector('input[name=tmode]:checked')?.value || 'date';
+  let temporal = undefined;
+  if (tRadio === 'date') {
+    const d = V('f-tdate'); if (d) temporal = { date: d };
+  } else {
+    const s = V('f-tstart'), e = V('f-tend');
+    if (s) temporal = { start_date: s, end_date: e || null };
+  }
+
+  const [bw,bs,be,bn] = ['f-bw','f-bs','f-be','f-bn'].map(id => parseFloat(V(id)));
+  const bboxOk = [bw,bs,be,bn].every(n => !isNaN(n));
+
+  const resType = V('f-rtype2');
+  let resolution = undefined;
+  if (resType) {
+    const rv = { type: resType };
+    const val = V('f-rval'); if (val) rv.value = parseFloat(val) || val;
+    const unit = V('f-runit'); if (unit) rv.unit = unit;
+    const lbl  = V('f-rlabel'); if (lbl) rv.label = lbl;
+    resolution = [rv];
+  }
+
+  const geoRaw = V('f-geo');
+  const geography = geoRaw ? geoRaw.split(',').map(g=>g.trim().toLowerCase().replace(/\s+/g,'-')).filter(Boolean) : undefined;
+
+  const kwRaw = V('f-kw');
+  const keywords = kwRaw ? kwRaw.split(',').map(k=>k.trim()).filter(Boolean) : [];
+
+  const cauth = V('f-cauth'), cdate = V('f-cdate');
+  let citation = undefined;
+  if (cauth || cdate) {
+    citation = {
+      authors: cauth ? cauth.split(',').map(a=>a.trim()).filter(Boolean) : [],
+      date: cdate || '',
+    };
+    const ct = V('f-ctitle'), cp = V('f-cpub'), cu = V('f-curl');
+    if (ct) citation.title     = ct;
+    if (cp) citation.publisher = cp;
+    if (cu) citation.url       = cu;
+  }
+
+  const sname = V('f-sname'), surl = V('f-surl');
+  const series = sname ? { name: sname, ...(surl?{url:surl}:{}) } : undefined;
+
+  return {
+    id:          V('f-id'),
+    title:       V('f-title'),
+    description: V('f-desc'),
+    license,
+    resource_type: document.getElementById('f-rtype').value,
+    version:     V('f-ver') || undefined,
+    series,
+    keywords,
+    note:        V('f-note') || undefined,
+    contact:     getContacts(),
+    citation,
+    doi:         V('f-doi') || undefined,
+    spatial: bboxOk ? {
+      bbox: [bw,bs,be,bn],
+      crs:  V('f-crs') || 'EPSG:4326',
+      ...(geography ? {geography} : {}),
+      ...(resolution ? {resolution} : {}),
+    } : undefined,
+    temporal,
+    domains:   getDomains(),
+    notRec:    getNR(),
+    data:      getAssets(),
+    processing:getProcs(),
+  };
+}
+
+function buildYAML(fd) {
+  // Determine extensions needed
+  const exts = [
+    'https://cgiar-climate-data-hub.github.io/cdh-metadata-standard/v0.2.0/extensions/cdh/schema.json'
+  ];
+
+  const today = new Date().toISOString().slice(0,10);
+
+  // Build the record object in the canonical field order
+  const r = {};
+  r.cdh_schema_version = 'v0.2.0';
+  r.extensions = exts;
+
+  if (fd.id)          r.id = fd.id;
+  if (fd.title)       r.title = fd.title;
+  if (fd.version)     r.version = fd.version;
+  if (fd.series)      r.series = fd.series;
+  if (fd.description) r.description = fd.description;
+  if (fd.license)     r.license = fd.license;
+  r.resource_type = fd.resource_type || 'dataset';
+  if (fd.keywords?.length) r.keywords = fd.keywords;
+  if (fd.note)        r.note = fd.note;
+
+  if (fd.contact?.length) r.contact = fd.contact;
+
+  if (fd.citation)    r.citation = fd.citation;
+  if (fd.doi)         r.doi = fd.doi;
+
+  r.created = today;
+  r.updated = today;
+
+  if (fd.spatial)     r.spatial = fd.spatial;
+  if (fd.temporal)    r.temporal = fd.temporal;
+
+  if (fd.domains?.length || fd.notRec?.length) {
+    r.cdh = {};
+    if (fd.domains?.length)  r.cdh.domain = fd.domains;
+    if (fd.notRec?.length)   r.cdh.not_recommended_for = fd.notRec;
+  }
+
+  if (fd.processing?.length) r.processing = fd.processing;
+  if (fd.data?.length)       r.data = fd.data;
+
+  const body = jsyaml.dump(r, { indent: 2, lineWidth: 100, noRefs: true });
+  const schema = 'https://cgiar-climate-data-hub.github.io/cdh-metadata-standard/v0.2.0/schemas/profiles/cdh.schema.json';
+  return `# yaml-language-server: $schema=../../spec/schemas/profiles/cdh.schema.json\n"$schema": ${schema}\n${body}`;
+}
+
+// ── Modal ───────────────────────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('yaml-out').textContent = buildYAML(collect());
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function copyYAML() {
+  navigator.clipboard.writeText(document.getElementById('yaml-out').textContent)
+    .then(()=>setStatus('YAML copied to clipboard!'));
+}
+function dlYAML() {
+  const fd = collect();
+  const text = document.getElementById('yaml-out').textContent;
+  const name = fd.id || 'metadata';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:'text/yaml'}));
+  a.download = `${name}.yaml`;
+  a.click();
+}
+
+// ── Clear ───────────────────────────────────────────────────────────────────────
+function clearAll() {
+  if (!confirm('Clear all form fields?')) return;
+  document.querySelectorAll('input:not([type=radio]):not([type=checkbox]), textarea').forEach(el=>el.value='');
+  document.getElementById('f-crs').value = 'EPSG:4326';
+  document.getElementById('f-rtype').value = 'dataset';
+  document.getElementById('f-lic').value = '';
+  document.getElementById('f-rtype2').value = '';
+  ['contacts-list','nr-list','data-list','proc-list'].forEach(id=>{document.getElementById(id).innerHTML='';});
+  document.querySelectorAll('.chip.on').forEach(c=>c.classList.remove('on'));
+  cCnt=nrCnt=aCnt=pCnt=0;
+  addContact(); addAsset();
+  setStatus('Form cleared');
+}
+
+// ── Status ──────────────────────────────────────────────────────────────────────
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+// ── Chat ────────────────────────────────────────────────────────────────────────
+function chatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+// Lightweight markdown → HTML (bold, italic, inline code, ordered/unordered lists)
+function mdToHtml(raw) {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inline = s => s
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>');
+
+  const lines = raw.split('\n');
+  let out = '', inOL = false, inUL = false;
+
+  for (const line of lines) {
+    const e = esc(line.trimEnd());
+    const olM = e.match(/^(\d+)\.\s+(.+)/);
+    const ulM = e.match(/^[-*]\s+(.+)/);
+
+    if (olM) {
+      if (!inOL) { if (inUL) { out += '</ul>'; inUL = false; } out += '<ol>'; inOL = true; }
+      out += `<li>${inline(olM[2])}</li>`;
+    } else if (ulM) {
+      if (!inUL) { if (inOL) { out += '</ol>'; inOL = false; } out += '<ul>'; inUL = true; }
+      out += `<li>${inline(ulM[1])}</li>`;
+    } else {
+      if (inOL) { out += '</ol>'; inOL = false; }
+      if (inUL) { out += '</ul>'; inUL = false; }
+      const t = e.trim();
+      out += t === '' ? '<br>' : inline(t) + '<br>';
+    }
+  }
+  if (inOL) out += '</ol>';
+  if (inUL) out += '</ul>';
+  return out.replace(/(<br>\s*)+$/, '');
+}
+
+function addMsg(role, content, filled = false, showRetry = false) {
+  const box  = document.getElementById('chat-msgs');
+  const disp = content.replace(/<fill>[\s\S]*?<\/fill>/g,'').trim();
+  const div  = document.createElement('div');
+  div.className = `msg ${role}`;
+  const rendered = role === 'assistant' ? mdToHtml(disp) : mdToHtml(disp);
+  div.innerHTML = `
+    <div class="avatar">${role==='user'?'You':'AI'}</div>
+    <div>
+      <div class="bubble">${rendered}</div>
+      ${filled ? '<div class="fill-notice">Form fields updated</div>' : ''}
+      ${showRetry ? `<button class="add-row" style="margin-top:6px;width:auto;padding:5px 12px" onclick="retryLast()">Retry</button>` : ''}
+    </div>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearChat() {
+  chatHistory = [];
+  const box = document.getElementById('chat-msgs');
+  box.innerHTML = `<div class="msg assistant"><div class="avatar">AI</div><div><div class="bubble">Chat cleared. Ask me anything about CDH metadata.</div></div></div>`;
+  setStatus('Chat history cleared.');
+}
+
+function retryLast() {
+  // Re-send the last user message
+  if (!chatHistory.length) return;
+  const last = [...chatHistory].reverse().find(m => m.role === 'user');
+  if (!last) return;
+  // Remove the failed assistant turn if present
+  if (chatHistory[chatHistory.length-1].role === 'assistant') chatHistory.pop();
+  chatHistory.pop(); // remove the user message too — sendChat re-adds it
+  document.getElementById('chat-inp').value = last.content;
+  sendChat();
+}
+
+function applyFill(text) {
+  // Primary: look for explicit <fill>...</fill> block
+  let json = null;
+  const tagged = text.match(/<fill>([\s\S]*?)<\/fill>/);
+  if (tagged) {
+    try { json = JSON.parse(tagged[1]); } catch(e) { console.warn('fill parse error', e); }
+  }
+  // Fallback: detect a raw JSON object block the AI accidentally returned without tags
+  if (!json) {
+    const raw = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (raw) { try { json = JSON.parse(raw[1]); } catch(e) {} }
+  }
+  if (!json) return false;
+
+  // Helper: coerce arrays → comma-separated strings for text inputs
+  const str = v => Array.isArray(v) ? v.join(', ') : (v ?? '');
+  const set = (id, v) => {
+    if (v === undefined || v === null) return;
+    const el = document.getElementById(id);
+    if (el) el.value = str(v);
+  };
+
+  set('f-id',    json.id);
+  set('f-title', json.title);
+  set('f-desc',  json.description);
+  set('f-note',  json.note);
+  set('f-ver',   json.version);
+  set('f-kw',    json.keywords);       // handles array or string
+  set('f-sname', json.series_name);
+  set('f-surl',  json.series_url);
+  set('f-doi',   json.doi);
+  set('f-cauth', json.citation_authors); // handles array or string
+  set('f-cdate', json.citation_date);
+  set('f-ctitle',json.citation_title);
+  set('f-cpub',  json.citation_publisher);
+  set('f-curl',  json.citation_url);
+  set('f-bw',    json.bbox_west);
+  set('f-bs',    json.bbox_south);
+  set('f-be',    json.bbox_east);
+  set('f-bn',    json.bbox_north);
+  set('f-crs',   json.crs);
+  set('f-geo',   json.geography);
+  set('f-rtype2',json.res_type);
+  set('f-rval',  json.res_value);
+  set('f-runit', json.res_unit);
+  set('f-rlabel',json.res_label);
+  set('f-tdate', json.temporal_date);
+  set('f-tstart',json.temporal_start);
+  // temporal_end: empty string means open-ended (don't set null)
+  if (json.temporal_end !== undefined && json.temporal_end !== null) {
+    set('f-tend', json.temporal_end);
+    // Switch to range mode automatically
+    document.querySelector('input[name=tmode][value=range]').checked = true;
+    tmode('range');
+  } else if (json.temporal_start) {
+    document.querySelector('input[name=tmode][value=range]').checked = true;
+    tmode('range');
+  }
+  if (json.license) {
+    const sel = document.getElementById('f-lic');
+    const found = [...sel.options].find(o => o.value === json.license);
+    if (found) { sel.value = json.license; }
+    else {
+      sel.value = '_custom';
+      document.getElementById('f-lic-custom').value = json.license;
+      document.getElementById('f-lic-custom').style.display = 'block';
+    }
+  }
+  if (Array.isArray(json.domain) && json.domain.length) setDomains(json.domain);
+  refreshValidation();
+  return true;
+}
+
+async function sendChat() {
+  if (busy) return;
+  const inp = document.getElementById('chat-inp');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  inp.value = '';
+  busy = true;
+  document.getElementById('send-btn').disabled = true;
+
+  addMsg('user', txt);
+  chatHistory.push({ role:'user', content:txt });
+  document.getElementById('typing').classList.add('show');
+  setStatus('AI is thinking…');
+
+  try {
+    if (!SYS) {
+      document.getElementById('typing').classList.remove('show');
+      busy = false; document.getElementById('send-btn').disabled = false;
+      addMsg('assistant', '⏳ Skill is still loading from GitHub, please try again in a moment.');
+      return;
+    }
+    const apiKey = getKey();
+    if (!apiKey) {
+      document.getElementById('typing').classList.remove('show');
+      busy = false; document.getElementById('send-btn').disabled = false;
+      openSettings();
+      addMsg('assistant', '⚙ Please enter your OpenRouter API key in Settings first.');
+      return;
+    }
+    // Keep only the last 12 messages to avoid hitting context/payload limits
+    const trimmed = chatHistory.slice(-12);
+
+    let res;
+    try {
+      res = await fetch(OR_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type':  'application/json',
+          'HTTP-Referer':  location.href,
+          'X-Title':       'CDH Metadata Generator',
+        },
+        body: JSON.stringify({
+          model: getModel(),
+          messages: [{ role:'system', content:SYS }, ...trimmed],
+          max_tokens: 1024,
+          temperature: 0.3,
+        })
+      });
+    } catch(netErr) {
+      throw new Error(`Network error — cannot reach OpenRouter. Check your internet connection or try again. (${netErr.message})`);
+    }
+    if (!res.ok) {
+      let detail = '';
+      try { const j = await res.json(); detail = j?.error?.message || JSON.stringify(j); }
+      catch { detail = await res.text(); }
+      if (res.status === 429) throw new Error(`Rate limit reached (429). Free tier allows ~20 req/min and 50 req/day. Wait a moment and retry.`);
+      if (res.status === 402) throw new Error(`No credits (402). Add credits at openrouter.ai or switch to a :free model in ⚙ Settings.`);
+      throw new Error(`HTTP ${res.status}: ${detail}`);
+    }
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content || '(empty response)';
+    chatHistory.push({ role:'assistant', content:reply });
+    const filled = applyFill(reply);
+    addMsg('assistant', reply, filled);
+    setStatus(filled ? 'AI updated form fields.' : 'Ready.');
+  } catch(err) {
+    addMsg('assistant', `⚠ ${err.message}`, false, true);
+    setStatus('Error — see chat.');
+  } finally {
+    document.getElementById('typing').classList.remove('show');
+    busy = false;
+    document.getElementById('send-btn').disabled = false;
+  }
+}
+
+// ── Live green validation on required fields ─────────────────────────────────────
+// Required field IDs (those whose label has class="req")
+const REQUIRED_IDS = [
+  'f-id','f-title','f-desc','f-lic','f-kw',         // core
+  'f-cauth','f-cdate',                                // citation
+];
+
+function markFilled(el) {
+  if (!el) return;
+  const filled = el.value.trim() !== '' && el.value !== '— select —' && el.value !== '';
+  el.classList.toggle('filled', filled);
+  // Propagate to parent .field so label CSS transitions apply
+  el.closest?.('.field')?.classList.toggle('filled', filled);
+}
+
+function watchField(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => markFilled(el));
+  el.addEventListener('change', () => markFilled(el));
+  // Also re-check when applyFill populates it programmatically
+  const orig = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value') ||
+               Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  markFilled(el);
+}
+
+// Re-run all checks (called after applyFill)
+function refreshValidation() {
+  REQUIRED_IDS.forEach(id => markFilled(document.getElementById(id)));
+  // Also check license select
+  markFilled(document.getElementById('f-lic'));
+}
+
+// ── Chat drawer toggle ──────────────────────────────────────────────────────────
+function toggleChat() {
+  const panel = document.getElementById('chat-panel');
+  const tab   = document.getElementById('chat-tab');
+  const form  = document.querySelector('.form-panel');
+  const isOpen = panel.classList.toggle('open');
+  tab.classList.toggle('open', isOpen);
+  form.classList.toggle('shifted', isOpen);
+  tab.title = isOpen ? 'Close AI Assistant' : 'Open AI Assistant';
+}
+
+// ── Settings ────────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('s-key').value   = getKey();
+  const m = getModel();
+  const sel = document.getElementById('s-model');
+  const known = [...sel.options].find(o => o.value === m);
+  if (known) { sel.value = m; document.getElementById('s-model-custom').style.display='none'; }
+  else { sel.value='_custom'; document.getElementById('s-model-custom').value=m; document.getElementById('s-model-custom').style.display='block'; }
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('open');
+}
+function saveSettings() {
+  const key = document.getElementById('s-key').value.trim();
+  let model = document.getElementById('s-model').value;
+  if (model === '_custom') model = document.getElementById('s-model-custom').value.trim();
+  if (key)   localStorage.setItem('or_api_key', key);
+  if (model) localStorage.setItem('or_model', model);
+  document.getElementById('model-label').textContent = `OpenRouter · ${model || OR_MODEL}`;
+  closeSettings();
+  setStatus('Settings saved.');
+}
+document.getElementById('s-model').addEventListener('change', function() {
+  document.getElementById('s-model-custom').style.display = this.value === '_custom' ? 'block' : 'none';
+});
+
+// ── Init ────────────────────────────────────────────────────────────────────────
+// Restore model label from localStorage
+const _savedModel = getModel();
+if (_savedModel) document.getElementById('model-label').textContent = `OpenRouter · ${_savedModel}`;
+// Prompt for API key if not set
+if (!getKey()) setTimeout(openSettings, 600);
+
+// Load skill from GitHub (async — sets SYS when done)
+loadSkill();
+
+// Wire required field watchers
+REQUIRED_IDS.forEach(watchField);
+
+addContact();
+addAsset();
+</script>
+</body>
+</html>

@@ -388,6 +388,54 @@
 
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Validation results ── */
+    .val-section { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .val-section h4 { font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: var(--muted); margin-bottom: 10px; }
+    .val-list { display: flex; flex-direction: column; gap: 5px; }
+    .val-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 12.5px; padding: 5px 8px; border-radius: 6px;
+    }
+    .val-row.pass { background: #f0fdf4; color: #166534; }
+    .val-row.fail { background: #fef2f2; color: #991b1b; }
+    .val-row.warn { background: #fffbeb; color: #92400e; }
+    .val-icon { flex-shrink: 0; margin-top: 1px; }
+    .val-summary {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 18px; border-bottom: 1px solid var(--border);
+      font-size: 13px; font-weight: 600;
+    }
+    .val-summary.ok  { background: #f0fdf4; color: #166534; }
+    .val-summary.err { background: #fef2f2; color: #991b1b; }
+
+    /* ── Submission modal steps ── */
+    .step-list { display: flex; flex-direction: column; gap: 8px; padding: 14px 18px; }
+    .step {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface2); font-size: 13px;
+    }
+    .step-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--green-faint); color: var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+    .step.active .step-num { background: var(--green); color: #fff; }
+    .step.done .step-num   { background: #dcfce7; color: #166534; }
+    .step.err  .step-num   { background: #fee2e2; color: #991b1b; }
+    .step-text { flex: 1; }
+    .step-text strong { display: block; font-weight: 600; }
+    .step-text small  { color: var(--muted); font-size: 11px; }
+    .pr-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--green); font-weight: 600; text-decoration: none; font-size: 13px;
+      padding: 8px 14px; background: var(--green-faint); border: 1px solid var(--border);
+      border-radius: 7px; margin: 10px 18px;
+    }
+    .pr-link:hover { background: #dcfce7; }
   </style>
 </head>
 <body>
@@ -776,7 +824,9 @@
       <h3>Generated YAML — CDH Metadata v0.2.0</h3>
       <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" onclick="closeModal()">✕ Close</button>
     </div>
+    <div id="val-summary-bar" style="display:none"></div>
     <div class="modal-body">
+      <div id="val-results" style="display:none"></div>
       <pre class="yaml-pre" id="yaml-out"></pre>
     </div>
     <div class="modal-ft">
@@ -784,9 +834,69 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         Copy
       </button>
-      <button class="btn btn-success" onclick="dlYAML()">
+      <button class="btn btn-outline" onclick="dlYAML()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download YAML
+      </button>
+      <button class="btn btn-outline" id="validate-btn" onclick="runValidation()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Validate
+      </button>
+      <button class="btn btn-success" id="submit-to-cdh-btn" onclick="openSubmitModal()" style="display:none">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Submit to CDH Catalog
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Submit Modal ──────────────────────────────────────────────────────────────── -->
+<div class="overlay" id="submit-modal" onclick="if(event.target===this)closeSubmitModal()">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-hd">
+      <div>
+        <h3>Submit to CDH Catalog</h3>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Creates a pull request to <strong>CGIAR-Climate-Data-Hub/cdh-catalog</strong></div>
+      </div>
+      <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" onclick="closeSubmitModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="step-list" id="submit-steps">
+        <div class="step" id="step-creds">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>GitHub credentials</strong><small>Token with <code>repo</code> scope · stored in localStorage</small></div>
+        </div>
+        <div class="step" id="step-fork">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>Fork cdh-catalog</strong><small>Idempotent — safe to re-run</small></div>
+        </div>
+        <div class="step" id="step-commit">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>Commit YAML to fork</strong><small id="step-commit-path">records/{id}.yaml</small></div>
+        </div>
+        <div class="step" id="step-pr">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>Open pull request</strong><small>GitHub Actions validates on the PR automatically</small></div>
+        </div>
+      </div>
+      <div style="padding:0 18px 14px;display:flex;flex-direction:column;gap:10px">
+        <div class="field">
+          <label class="req" for="gh-user">GitHub Username</label>
+          <input id="gh-user" placeholder="your-github-username" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label class="req" for="gh-token">Personal Access Token</label>
+          <input id="gh-token" type="password" placeholder="ghp_…" autocomplete="off" />
+          <div class="hint">Needs <code>repo</code> scope. Create one at <a href="https://github.com/settings/tokens/new?scopes=repo&description=CDH+Metadata+Submitter" target="_blank" style="color:var(--green)">github.com/settings/tokens</a>.</div>
+        </div>
+      </div>
+      <div id="submit-result" style="display:none;padding:0 18px 14px"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeSubmitModal()">Cancel</button>
+      <button class="btn btn-success" id="do-submit-btn" onclick="doSubmit()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Submit PR
       </button>
     </div>
   </div>
@@ -1321,6 +1431,10 @@ function buildYAML(fd) {
 // ── Modal ───────────────────────────────────────────────────────────────────────
 function openModal() {
   document.getElementById('yaml-out').textContent = buildYAML(collect());
+  // Reset validation state on each open
+  document.getElementById('val-summary-bar').style.display = 'none';
+  document.getElementById('val-results').style.display = 'none';
+  document.getElementById('submit-to-cdh-btn').style.display = 'none';
   document.getElementById('modal').classList.add('open');
 }
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
@@ -1682,6 +1796,226 @@ function saveSettings() {
 document.getElementById('s-model').addEventListener('change', function() {
   document.getElementById('s-model-custom').style.display = this.value === '_custom' ? 'block' : 'none';
 });
+
+// ── Client-side validation ──────────────────────────────────────────────────────
+const SPDX_RE = /^(CC-BY|CC-BY-SA|CC-BY-NC|CC-BY-ND|CC-BY-NC-SA|CC-BY-NC-ND|CC0|ODbL|ODC-By|MIT|Apache-2\.0|GPL-2\.0|GPL-3\.0|LGPL-2\.1|LGPL-3\.0|AGPL-3\.0|BSD-2-Clause|BSD-3-Clause|Unlicense)-?([\d.]*)/i;
+const DOI_BARE_RE = /^10\.\d{4,}/;
+
+function validateRecord(fd) {
+  const errors = [], warnings = [];
+  const req = (ok, field, msg) => ok ? null : errors.push({ field, msg });
+  const warn = (ok, field, msg) => ok ? null : warnings.push({ field, msg });
+
+  // Required fields
+  req(fd.id,              'ID',          'ID is required');
+  req(/^[a-z0-9-]+$/.test(fd.id||''),   'ID',          'ID must be lowercase letters, digits and hyphens only');
+  req(fd.title,           'Title',       'Title is required');
+  req(fd.description,     'Description', 'Description is required');
+  req((fd.description||'').split(/\s+/).length >= 15, 'Description', 'Description should be at least 15 words');
+  req(fd.license,         'License',     'License is required');
+  req(fd.keywords?.length,'Keywords',    'At least one keyword required');
+  req(fd.domains?.length, 'CDH Domain',  'At least one CDH domain required');
+
+  // Contact rules
+  req(fd.contact?.length, 'Contact', 'At least one contact is required');
+  const hasLicensor = fd.contact?.some(c => c.roles?.includes('licensor') && c.organization);
+  req(hasLicensor, 'Contact', 'At least one contact must have role "licensor" and an organization');
+  const allHaveOrg = fd.contact?.every(c => c.organization);
+  req(allHaveOrg, 'Contact', 'Every contact must have an organization');
+
+  // Citation / DOI — at least one required
+  const hasDOI = !!fd.doi;
+  const hasCitation = !!(fd.citation?.authors?.length && fd.citation?.date);
+  req(hasDOI || hasCitation, 'Citation / DOI', 'Provide either a bare DOI or citation authors + date');
+  if (hasDOI) req(DOI_BARE_RE.test(fd.doi), 'DOI', 'DOI must be bare (10.xxxx/…) — no https://doi.org/ prefix');
+
+  // Data assets
+  req(fd.data?.length, 'Data Assets', 'At least one data asset is required');
+  fd.data?.forEach((a, i) => {
+    req(a.name, `Asset ${i+1}`, 'Asset name is required');
+    req(a.locations?.length, `Asset ${i+1}`, 'At least one location URL is required');
+  });
+
+  // Processing: if present, one step must have id: source
+  if (fd.processing?.length) {
+    const hasSource = fd.processing.some(p => p.id === 'source');
+    req(hasSource, 'Processing', 'If processing steps are present, at least one must have id: "source"');
+  }
+
+  // Warnings (recommended but not blocking)
+  warn(fd.spatial?.bbox, 'Spatial', 'Bounding box recommended for all datasets');
+  warn(fd.temporal, 'Temporal', 'Temporal coverage recommended');
+  warn(fd.data?.every(a => a.media_type), 'Data Assets', 'media_type recommended on each asset');
+
+  return { errors, warnings };
+}
+
+const ICON_OK   = `<svg class="val-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const ICON_ERR  = `<svg class="val-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+const ICON_WARN = `<svg class="val-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+
+function runValidation() {
+  const fd = collect();
+  const { errors, warnings } = validateRecord(fd);
+  const pass = errors.length === 0;
+
+  // Summary bar
+  const bar = document.getElementById('val-summary-bar');
+  bar.className = `val-summary ${pass ? 'ok' : 'err'}`;
+  bar.style.display = 'flex';
+  bar.innerHTML = pass
+    ? `${ICON_OK} Record passes all required checks — ready to submit`
+    : `${ICON_ERR} ${errors.length} error${errors.length>1?'s':''} must be fixed before submission`;
+
+  // Results detail
+  const res = document.getElementById('val-results');
+  res.style.display = 'block';
+  let html = '';
+  if (errors.length) {
+    html += `<div class="val-section"><h4>Errors — must fix</h4><div class="val-list">`;
+    errors.forEach(e => { html += `<div class="val-row fail">${ICON_ERR}<span><strong>${e.field}:</strong> ${e.msg}</span></div>`; });
+    html += `</div></div>`;
+  }
+  if (warnings.length) {
+    html += `<div class="val-section"><h4>Warnings — recommended</h4><div class="val-list">`;
+    warnings.forEach(w => { html += `<div class="val-row warn">${ICON_WARN}<span><strong>${w.field}:</strong> ${w.msg}</span></div>`; });
+    html += `</div></div>`;
+  }
+  if (pass && !warnings.length) {
+    html += `<div class="val-section"><div class="val-row pass">${ICON_OK} All checks passed — no errors or warnings.</div></div>`;
+  }
+  res.innerHTML = html;
+
+  // Show/hide Submit button
+  document.getElementById('submit-to-cdh-btn').style.display = pass ? 'inline-flex' : 'none';
+  setStatus(pass ? 'Validation passed — ready to submit.' : `Validation failed: ${errors.length} error(s).`);
+}
+
+// ── GitHub submission ───────────────────────────────────────────────────────────
+const CATALOG = 'CGIAR-Climate-Data-Hub/cdh-catalog';
+let _submitYaml = '', _submitId = '';
+
+function openSubmitModal() {
+  const fd = collect();
+  _submitYaml = document.getElementById('yaml-out').textContent;
+  _submitId   = fd.id || 'unnamed-record';
+  document.getElementById('step-commit-path').textContent = `records/${_submitId}.yaml`;
+  document.getElementById('gh-user').value  = localStorage.getItem('gh_user')  || '';
+  document.getElementById('gh-token').value = localStorage.getItem('gh_token') || '';
+  document.getElementById('submit-result').style.display = 'none';
+  document.getElementById('do-submit-btn').disabled = false;
+  ['step-fork','step-commit','step-pr'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('active','done','err');
+  });
+  document.getElementById('submit-modal').classList.add('open');
+}
+function closeSubmitModal() {
+  document.getElementById('submit-modal').classList.remove('open');
+}
+
+function setStep(id, state, detail = '') {
+  const el = document.getElementById(id);
+  el.classList.remove('active','done','err');
+  el.classList.add(state);
+  if (detail) {
+    const sm = el.querySelector('small');
+    if (sm) sm.textContent = detail;
+  }
+}
+
+async function doSubmit() {
+  const user  = document.getElementById('gh-user').value.trim();
+  const token = document.getElementById('gh-token').value.trim();
+  if (!user || !token) { alert('Please enter your GitHub username and token.'); return; }
+  localStorage.setItem('gh_user',  user);
+  localStorage.setItem('gh_token', token);
+
+  const btn = document.getElementById('do-submit-btn');
+  btn.disabled = true;
+  const result = document.getElementById('submit-result');
+  result.style.display = 'none';
+
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Accept':        'application/vnd.github+json',
+    'Content-Type':  'application/json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+  const gh = async (method, path, body) => {
+    const r = await fetch(`https://api.github.com${path}`, {
+      method, headers, body: body ? JSON.stringify(body) : undefined
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(json.message || `GitHub API error ${r.status}`);
+    return json;
+  };
+
+  try {
+    // Step 1: credentials implicitly validated above
+
+    // Step 2: fork
+    setStep('step-fork', 'active', 'Forking repository…');
+    await gh('POST', `/repos/${CATALOG}/forks`, { default_branch_only: true });
+    // Give GitHub a moment to provision the fork
+    await new Promise(r => setTimeout(r, 3000));
+    setStep('step-fork', 'done', 'Fork ready');
+
+    // Step 3: commit YAML to fork
+    setStep('step-commit', 'active', `Writing records/${_submitId}.yaml…`);
+    const forkRepo = `${user}/cdh-catalog`;
+    const filePath = `/repos/${forkRepo}/contents/records/${_submitId}.yaml`;
+    const content  = btoa(unescape(encodeURIComponent(_submitYaml)));
+
+    // Check if file already exists (get its SHA if so)
+    let sha;
+    try { const existing = await gh('GET', filePath); sha = existing.sha; } catch {}
+
+    const commitBody = {
+      message: `feat: add ${_submitId} metadata record`,
+      content,
+      branch: 'main',
+    };
+    if (sha) commitBody.sha = sha;
+    await gh('PUT', filePath, commitBody);
+    setStep('step-commit', 'done', `records/${_submitId}.yaml committed`);
+
+    // Step 4: open PR (fork main → upstream main)
+    setStep('step-pr', 'active', 'Creating pull request…');
+    let prUrl;
+    try {
+      const pr = await gh('POST', `/repos/${CATALOG}/pulls`, {
+        title: `feat: add ${_submitId}`,
+        head:  `${user}:main`,
+        base:  'main',
+        body:  `## New CDH metadata record\n\n**Record ID:** \`${_submitId}\`\n\nSubmitted via [CDH Metadata Generator](https://anaguilarar.github.io/CDH-metadata-app/).\n\nCI will validate this record against the CDH profile schema automatically.`,
+      });
+      prUrl = pr.html_url;
+    } catch (e) {
+      // PR may already exist — find it
+      const prs = await gh('GET', `/repos/${CATALOG}/pulls?head=${user}:main&state=open`);
+      prUrl = prs[0]?.html_url;
+      if (!prUrl) throw e;
+    }
+    setStep('step-pr', 'done', 'Pull request created');
+
+    result.style.display = 'block';
+    result.innerHTML = `<a class="pr-link" href="${prUrl}" target="_blank">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+      View pull request on GitHub
+    </a>
+    <div class="tip" style="margin:8px 0 0">GitHub Actions will now run the full CDH schema validation on this PR. Check the PR page for results.</div>`;
+    setStatus('PR submitted — check GitHub for validation results.');
+
+  } catch (err) {
+    const failing = ['step-fork','step-commit','step-pr'].find(id =>
+      document.getElementById(id).classList.contains('active'));
+    if (failing) setStep(failing, 'err', err.message);
+    result.style.display = 'block';
+    result.innerHTML = `<div class="val-row fail" style="margin:0">${ICON_ERR} ${err.message}</div>`;
+    btn.disabled = false;
+  }
+}
 
 // ── Init ────────────────────────────────────────────────────────────────────────
 // Restore model label from localStorage

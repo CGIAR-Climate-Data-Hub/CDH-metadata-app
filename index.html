@@ -852,42 +852,39 @@
 
 <!-- ── Submit Modal ──────────────────────────────────────────────────────────────── -->
 <div class="overlay" id="submit-modal" onclick="if(event.target===this)closeSubmitModal()">
-  <div class="modal" style="max-width:540px">
+  <div class="modal" style="max-width:520px">
     <div class="modal-hd">
       <div>
         <h3>Submit to CDH Catalog</h3>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Creates a pull request to <strong>CGIAR-Climate-Data-Hub/cdh-catalog</strong></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Triggers a GitHub Action in <strong>anaguilarar/cdh-catalog</strong> that creates a PR</div>
       </div>
       <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" onclick="closeSubmitModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="step-list" id="submit-steps">
-        <div class="step" id="step-creds">
+      <div class="step-list">
+        <div class="step" id="step-dispatch">
           <div class="step-num">1</div>
-          <div class="step-text"><strong>GitHub credentials</strong><small>Token with <code>repo</code> scope · stored in localStorage</small></div>
+          <div class="step-text">
+            <strong>Trigger submission workflow</strong>
+            <small id="step-dispatch-detail">Calls workflow_dispatch on anaguilarar/cdh-catalog</small>
+          </div>
         </div>
-        <div class="step" id="step-fork">
+        <div class="step" id="step-run">
           <div class="step-num">2</div>
-          <div class="step-text"><strong>Fork cdh-catalog</strong><small>Idempotent — safe to re-run</small></div>
-        </div>
-        <div class="step" id="step-commit">
-          <div class="step-num">3</div>
-          <div class="step-text"><strong>Commit YAML to fork</strong><small id="step-commit-path">records/{id}.yaml</small></div>
-        </div>
-        <div class="step" id="step-pr">
-          <div class="step-num">4</div>
-          <div class="step-text"><strong>Open pull request</strong><small>GitHub Actions validates on the PR automatically</small></div>
+          <div class="step-text">
+            <strong>GitHub Actions creates PR</strong>
+            <small>Writes records/<span id="step-record-id">{id}</span>/{id}.yaml · formats · opens PR · validates</small>
+          </div>
         </div>
       </div>
-      <div style="padding:0 18px 14px;display:flex;flex-direction:column;gap:10px">
-        <div class="field">
-          <label class="req" for="gh-user">GitHub Username</label>
-          <input id="gh-user" placeholder="your-github-username" autocomplete="username" />
-        </div>
+      <div style="padding:0 18px 14px">
         <div class="field">
           <label class="req" for="gh-token">Personal Access Token</label>
           <input id="gh-token" type="password" placeholder="ghp_…" autocomplete="off" />
-          <div class="hint">Needs <code>repo</code> scope. Create one at <a href="https://github.com/settings/tokens/new?scopes=repo&description=CDH+Metadata+Submitter" target="_blank" style="color:var(--green)">github.com/settings/tokens</a>.</div>
+          <div class="hint">Needs <code>repo</code> and <code>workflow</code> scopes.
+            <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=CDH+Metadata+Submitter" target="_blank" style="color:var(--green)">Create one here.</a>
+            Stored in localStorage.
+          </div>
         </div>
       </div>
       <div id="submit-result" style="display:none;padding:0 18px 14px"></div>
@@ -896,7 +893,7 @@
       <button class="btn btn-outline" onclick="closeSubmitModal()">Cancel</button>
       <button class="btn btn-success" id="do-submit-btn" onclick="doSubmit()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        Submit PR
+        Submit
       </button>
     </div>
   </div>
@@ -1891,31 +1888,32 @@ function runValidation() {
   setStatus(pass ? 'Validation passed — ready to submit.' : `Validation failed: ${errors.length} error(s).`);
 }
 
-// ── GitHub submission ───────────────────────────────────────────────────────────
-const CATALOG = 'CGIAR-Climate-Data-Hub/cdh-catalog';
+// ── GitHub submission via workflow_dispatch ─────────────────────────────────────
+const CATALOG         = 'anaguilarar/cdh-catalog';
+const SUBMIT_WORKFLOW = 'submit-record.yml';
 let _submitYaml = '', _submitId = '';
 
 function openSubmitModal() {
-  const fd = collect();
   _submitYaml = document.getElementById('yaml-out').textContent;
-  _submitId   = fd.id || 'unnamed-record';
-  document.getElementById('step-commit-path').textContent = `records/${_submitId}.yaml`;
-  document.getElementById('gh-user').value  = localStorage.getItem('gh_user')  || '';
+  _submitId   = collect().id || 'unnamed-record';
+  document.getElementById('step-record-id').textContent = _submitId;
   document.getElementById('gh-token').value = localStorage.getItem('gh_token') || '';
   document.getElementById('submit-result').style.display = 'none';
   document.getElementById('do-submit-btn').disabled = false;
-  ['step-fork','step-commit','step-pr'].forEach(id => {
+  ['step-dispatch','step-run'].forEach(id => {
     const el = document.getElementById(id);
     el.classList.remove('active','done','err');
   });
   document.getElementById('submit-modal').classList.add('open');
 }
+
 function closeSubmitModal() {
   document.getElementById('submit-modal').classList.remove('open');
 }
 
 function setStep(id, state, detail = '') {
   const el = document.getElementById(id);
+  if (!el) return;
   el.classList.remove('active','done','err');
   el.classList.add(state);
   if (detail) {
@@ -1925,92 +1923,72 @@ function setStep(id, state, detail = '') {
 }
 
 async function doSubmit() {
-  const user  = document.getElementById('gh-user').value.trim();
   const token = document.getElementById('gh-token').value.trim();
-  if (!user || !token) { alert('Please enter your GitHub username and token.'); return; }
-  localStorage.setItem('gh_user',  user);
+  if (!token) { alert('Please enter your GitHub Personal Access Token.'); return; }
   localStorage.setItem('gh_token', token);
 
-  const btn = document.getElementById('do-submit-btn');
-  btn.disabled = true;
+  const btn    = document.getElementById('do-submit-btn');
   const result = document.getElementById('submit-result');
+  btn.disabled = true;
   result.style.display = 'none';
 
   const headers = {
-    'Authorization': `Bearer ${token}`,
-    'Accept':        'application/vnd.github+json',
-    'Content-Type':  'application/json',
+    'Authorization':        `Bearer ${token}`,
+    'Accept':               'application/vnd.github+json',
+    'Content-Type':         'application/json',
     'X-GitHub-Api-Version': '2022-11-28',
   };
   const gh = async (method, path, body) => {
     const r = await fetch(`https://api.github.com${path}`, {
-      method, headers, body: body ? JSON.stringify(body) : undefined
+      method, headers, body: body ? JSON.stringify(body) : undefined,
     });
+    if (r.status === 204) return {};
     const json = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(json.message || `GitHub API error ${r.status}`);
     return json;
   };
 
   try {
-    // Step 1: credentials implicitly validated above
+    // Step 1: trigger workflow_dispatch
+    setStep('step-dispatch', 'active', `Calling workflow_dispatch on ${CATALOG}…`);
+    await gh('POST', `/repos/${CATALOG}/actions/workflows/${SUBMIT_WORKFLOW}/dispatches`, {
+      ref: 'main',
+      inputs: { record_id: _submitId, yaml_content: _submitYaml },
+    });
+    setStep('step-dispatch', 'done', 'Workflow triggered successfully');
 
-    // Step 2: fork
-    setStep('step-fork', 'active', 'Forking repository…');
-    await gh('POST', `/repos/${CATALOG}/forks`, { default_branch_only: true });
-    // Give GitHub a moment to provision the fork
-    await new Promise(r => setTimeout(r, 3000));
-    setStep('step-fork', 'done', 'Fork ready');
+    // Step 2: wait briefly then fetch the latest run URL
+    setStep('step-run', 'active', 'Waiting for GitHub Actions to start…');
+    await new Promise(r => setTimeout(r, 5000));
 
-    // Step 3: commit YAML to fork
-    setStep('step-commit', 'active', `Writing records/${_submitId}.yaml…`);
-    const forkRepo = `${user}/cdh-catalog`;
-    const filePath = `/repos/${forkRepo}/contents/records/${_submitId}.yaml`;
-    const content  = btoa(unescape(encodeURIComponent(_submitYaml)));
-
-    // Check if file already exists (get its SHA if so)
-    let sha;
-    try { const existing = await gh('GET', filePath); sha = existing.sha; } catch {}
-
-    const commitBody = {
-      message: `feat: add ${_submitId} metadata record`,
-      content,
-      branch: 'main',
-    };
-    if (sha) commitBody.sha = sha;
-    await gh('PUT', filePath, commitBody);
-    setStep('step-commit', 'done', `records/${_submitId}.yaml committed`);
-
-    // Step 4: open PR (fork main → upstream main)
-    setStep('step-pr', 'active', 'Creating pull request…');
-    let prUrl;
+    let runUrl = `https://github.com/${CATALOG}/actions/workflows/${SUBMIT_WORKFLOW}`;
     try {
-      const pr = await gh('POST', `/repos/${CATALOG}/pulls`, {
-        title: `feat: add ${_submitId}`,
-        head:  `${user}:main`,
-        base:  'main',
-        body:  `## New CDH metadata record\n\n**Record ID:** \`${_submitId}\`\n\nSubmitted via [CDH Metadata Generator](https://anaguilarar.github.io/CDH-metadata-app/).\n\nCI will validate this record against the CDH profile schema automatically.`,
-      });
-      prUrl = pr.html_url;
-    } catch (e) {
-      // PR may already exist — find it
-      const prs = await gh('GET', `/repos/${CATALOG}/pulls?head=${user}:main&state=open`);
-      prUrl = prs[0]?.html_url;
-      if (!prUrl) throw e;
-    }
-    setStep('step-pr', 'done', 'Pull request created');
+      const runs = await gh('GET',
+        `/repos/${CATALOG}/actions/workflows/${SUBMIT_WORKFLOW}/runs?per_page=1&event=workflow_dispatch`);
+      if (runs.workflow_runs?.[0]?.html_url) runUrl = runs.workflow_runs[0].html_url;
+    } catch {}
+    setStep('step-run', 'done', 'Workflow run started — PR will appear shortly');
 
     result.style.display = 'block';
-    result.innerHTML = `<a class="pr-link" href="${prUrl}" target="_blank">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
-      View pull request on GitHub
-    </a>
-    <div class="tip" style="margin:8px 0 0">GitHub Actions will now run the full CDH schema validation on this PR. Check the PR page for results.</div>`;
-    setStatus('PR submitted — check GitHub for validation results.');
+    result.innerHTML = `
+      <a class="pr-link" href="${runUrl}" target="_blank">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        View workflow run on GitHub
+      </a>
+      <a class="pr-link" href="https://github.com/${CATALOG}/pulls" target="_blank" style="margin-top:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+        View pull requests
+      </a>
+      <div class="tip" style="margin:8px 0 0">
+        The workflow writes <code>records/${_submitId}/${_submitId}.yaml</code>, formats it with Prettier,
+        and opens a PR. The <strong>Validate records</strong> check on the PR runs full CDH schema validation.
+      </div>`;
+    setStatus('Workflow triggered — PR will appear in GitHub shortly.');
 
   } catch (err) {
-    const failing = ['step-fork','step-commit','step-pr'].find(id =>
-      document.getElementById(id).classList.contains('active'));
-    if (failing) setStep(failing, 'err', err.message);
+    ['step-dispatch','step-run'].forEach(id => {
+      if (document.getElementById(id)?.classList.contains('active')) setStep(id, 'err', err.message);
+    });
     result.style.display = 'block';
     result.innerHTML = `<div class="val-row fail" style="margin:0">${ICON_ERR} ${err.message}</div>`;
     btn.disabled = false;

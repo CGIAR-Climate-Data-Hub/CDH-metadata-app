@@ -842,7 +842,7 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Validate
       </button>
-      <button class="btn btn-success" id="submit-to-cdh-btn" onclick="openSubmitModal()" disabled title="Run Validate first">
+      <button class="btn btn-success" id="submit-to-cdh-btn" onclick="validateThenSubmit()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         Submit to CDH Catalog
       </button>
@@ -1428,12 +1428,8 @@ function buildYAML(fd) {
 // ── Modal ───────────────────────────────────────────────────────────────────────
 function openModal() {
   document.getElementById('yaml-out').textContent = buildYAML(collect());
-  // Reset validation state on each open
   document.getElementById('val-summary-bar').style.display = 'none';
   document.getElementById('val-results').style.display = 'none';
-  const sb = document.getElementById('submit-to-cdh-btn');
-  sb.disabled = true;
-  sb.title = 'Run Validate first';
   document.getElementById('modal').classList.add('open');
 }
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
@@ -1885,11 +1881,19 @@ function runValidation() {
   }
   res.innerHTML = html;
 
-  // Enable/disable Submit button based on validation result
-  const submitBtn = document.getElementById('submit-to-cdh-btn');
-  submitBtn.disabled = !pass;
-  submitBtn.title = pass ? 'Submit to CDH Catalog' : 'Fix errors before submitting';
   setStatus(pass ? 'Validation passed — ready to submit.' : `Validation failed: ${errors.length} error(s).`);
+}
+
+function validateThenSubmit() {
+  // Rebuild YAML in case form changed since modal was opened
+  document.getElementById('yaml-out').textContent = buildYAML(collect());
+  runValidation();
+  const { errors } = validateRecord(collect());
+  if (errors.length === 0) {
+    closeModal();
+    openSubmitModal();
+  }
+  // If errors exist, stay in the YAML modal — runValidation() already showed them above
 }
 
 // ── GitHub submission via workflow_dispatch ─────────────────────────────────────

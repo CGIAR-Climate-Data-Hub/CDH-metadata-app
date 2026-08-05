@@ -469,301 +469,11 @@
 <div class="main">
 
   <!-- ── Form Panel ─────────────────────────────────────────────────────────── -->
-  <div class="form-panel">
-
-    <!-- Core -->
-    <div class="sec open" id="s-core">
-      <div class="sec-hd" onclick="tog('core')">
-        <div class="sec-title">
-          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-          Core Identity <span class="badge req">Required</span>
-        </div>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="sec-body">
-        <div class="grid2">
-          <div class="field">
-            <label class="req" for="f-id">ID</label>
-            <input id="f-id" placeholder="my-dataset-slug" />
-            <div class="hint">Lowercase, digits, hyphens only</div>
-          </div>
-          <div class="field">
-            <label for="f-rtype">Resource Type</label>
-            <select id="f-rtype">
-              <option value="dataset">dataset</option>
-              <option value="software">software</option>
-              <option value="service">service</option>
-              <option value="document">document</option>
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label class="req" for="f-title">Title</label>
-          <input id="f-title" placeholder="Human-readable dataset title" />
-        </div>
-        <div class="field">
-          <label class="req" for="f-desc">Description</label>
-          <textarea id="f-desc" rows="4" placeholder="2–5 sentences: what it contains, how it was produced, units, key caveats."></textarea>
-        </div>
-        <div class="grid2">
-          <div class="field">
-            <label class="req" for="f-lic">License</label>
-            <select id="f-lic" onchange="toggleCustomLic()">
-              <option value="">— select —</option>
-              <option>CC-BY-4.0</option>
-              <option>CC-BY-SA-4.0</option>
-              <option>CC0-1.0</option>
-              <option>CC-BY-NC-4.0</option>
-              <option>ODbL-1.0</option>
-              <option value="_custom">Custom…</option>
-            </select>
-            <input id="f-lic-custom" placeholder="Custom license string" style="display:none;margin-top:6px" />
-          </div>
-          <div class="field">
-            <label for="f-ver">Version</label>
-            <input id="f-ver" placeholder="v1.0, 2020, v2r2…" />
-          </div>
-        </div>
-        <div class="field">
-          <label class="req" for="f-kw">Keywords</label>
-          <input id="f-kw" placeholder="gridded, precipitation, rainfall  (comma-separated)" />
-          <div class="hint">At least one required</div>
-        </div>
-        <div class="field">
-          <label for="f-note">Note / Caveats</label>
-          <textarea id="f-note" rows="2" placeholder="Optional: interpretation-critical remarks or usage warnings"></textarea>
-        </div>
-        <div class="grid2">
-          <div class="field">
-            <label for="f-sname">Series Name</label>
-            <input id="f-sname" placeholder="MapSPAM, GLW, CHIRPS…" />
-          </div>
-          <div class="field">
-            <label for="f-surl">Series URL</label>
-            <input id="f-surl" type="url" placeholder="https://…" />
-          </div>
-        </div>
-      </div>
+  <div class="form-panel" id="form-panel">
+    <div id="schema-loading-state" style="padding:48px 20px;text-align:center;color:var(--muted)">
+      <div style="font-size:14px;margin-bottom:6px">Loading CDH schema…</div>
+      <div style="font-size:11px">Fetching from cgiar-climate-data-hub.github.io</div>
     </div>
-
-    <!-- Contacts -->
-    <div class="sec open" id="s-contacts">
-      <div class="sec-hd" onclick="tog('contacts')">
-        <div class="sec-title">
-          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-          Contacts <span class="badge req">Required</span>
-        </div>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="sec-body">
-        <div class="tip">At least one contact must include <strong>licensor</strong> in roles. Every entry must include <strong>organization</strong>.</div>
-        <div class="dyn-list" id="contacts-list"></div>
-        <button class="add-row" onclick="addContact()">+ Add Contact</button>
-      </div>
-    </div>
-
-    <!-- Citation -->
-    <div class="sec open" id="s-citation">
-      <div class="sec-hd" onclick="tog('citation')">
-        <div class="sec-title">
-          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
-          Citation &amp; DOI <span class="badge req">At least one</span>
-        </div>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="sec-body">
-        <div class="field">
-          <label for="f-doi">DOI (bare format)</label>
-          <input id="f-doi" placeholder="10.7910/DVN/SWPENT" />
-          <div class="hint">No https://doi.org/ prefix. If provided, citation is optional.</div>
-        </div>
-        <div class="grid2">
-          <div class="field">
-            <label class="req" for="f-cauth">Citation Authors</label>
-            <input id="f-cauth" placeholder="Author One, Author Two, Org Name" />
-            <div class="hint">Comma-separated names or organizations</div>
-          </div>
-          <div class="field">
-            <label class="req" for="f-cdate">Publication Date</label>
-            <input id="f-cdate" placeholder="2024 or 2024-06-15" />
-          </div>
-        </div>
-        <div class="grid2">
-          <div class="field">
-            <label for="f-ctitle">Citation Title</label>
-            <input id="f-ctitle" placeholder="As appears in citation (may differ from record title)" />
-          </div>
-          <div class="field">
-            <label for="f-cpub">Publisher</label>
-            <input id="f-cpub" placeholder="Harvard Dataverse, FAO…" />
-          </div>
-        </div>
-        <div class="field">
-          <label for="f-curl">Citation URL</label>
-          <input id="f-curl" type="url" placeholder="https://…" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Spatial -->
-    <div class="sec open" id="s-spatial">
-      <div class="sec-hd" onclick="tog('spatial')">
-        <div class="sec-title">
-          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-          Spatial <span class="badge opt">Recommended</span>
-        </div>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="sec-body">
-        <div class="field">
-          <label>Bounding Box — [West, South, East, North]</label>
-          <div class="grid4">
-            <div><input id="f-bw" placeholder="West" /><div class="hint" style="text-align:center">West</div></div>
-            <div><input id="f-bs" placeholder="South" /><div class="hint" style="text-align:center">South</div></div>
-            <div><input id="f-be" placeholder="East" /><div class="hint" style="text-align:center">East</div></div>
-            <div><input id="f-bn" placeholder="North" /><div class="hint" style="text-align:center">North</div></div>
-          </div>
-        </div>
-        <div class="grid2">
-          <div class="field">
-            <label for="f-crs">CRS</label>
-            <input id="f-crs" placeholder="EPSG:4326" value="EPSG:4326" />
-          </div>
-          <div class="field">
-            <label for="f-geo">Geography</label>
-            <input id="f-geo" placeholder="world, ethiopia, kenya… (comma-separated)" />
-          </div>
-        </div>
-        <div class="grid3">
-          <div class="field">
-            <label for="f-rtype2">Resolution Type</label>
-            <select id="f-rtype2">
-              <option value="">— none —</option>
-              <option value="xy">xy</option>
-              <option value="x">x</option>
-              <option value="y">y</option>
-              <option value="point">point</option>
-              <option value="polygon">polygon</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="f-rval">Value</label>
-            <input id="f-rval" placeholder="0.08333333" />
-          </div>
-          <div class="field">
-            <label for="f-runit">Unit</label>
-            <input id="f-runit" placeholder="degree, meter…" />
-          </div>
-        </div>
-        <div class="field">
-          <label for="f-rlabel">Resolution Label</label>
-          <input id="f-rlabel" placeholder="5 arc-minutes (~10 km at equator)" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Temporal -->
-    <div class="sec" id="s-temporal">
-      <div class="sec-hd" onclick="tog('temporal')">
-        <div class="sec-title">
-          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-          Temporal <span class="badge opt">Optional</span>
-        </div>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="sec-body">
-        <div class="field" style="margin-bottom:10px">
-          <label>Mode</label>
-          <div style="display:flex;gap:14px;margin-top:4px">
-            <label style="text-transform:none;font-weight:normal;font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer">
-              <input type="radio" name="tmode" value="date" checked onchange="tmode('date')"> Single date / year
-            </label>
-            <label style="text-transform:none;font-weight:normal;font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer">
-              <input type="radio" name="tmode" value="range" onchange="tmode('range')"> Date span
-            </label>
-          </div>
-        </div>
-        <div id="td-date" class="field">
-          <label for="f-tdate">Date / Year</label>
-          <input id="f-tdate" placeholder="2020 or 2020-06-15" />
-          <div class="hint">Any ISO 8601 precision: year (2020), month (2020-06), day</div>
-        </div>
-        <div id="td-range" style="display:none">
-          <div class="grid2">
-            <div class="field">
-              <label for="f-tstart">Start Date</label>
-              <input id="f-tstart" placeholder="2000-01-01" />
-            </div>
-            <div class="field">
-              <label for="f-tend">End Date</label>
-              <input id="f-tend" placeholder="2023-12-31 (blank = open-ended)" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CDH Domain -->
-    <div class="sec open" id="s-cdh">
-      <div class="sec-hd" onclick="tog('cdh')">
-        <div class="sec-title">
-          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
-          CDH Domain <span class="badge req">Required</span>
-        </div>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="sec-body">
-        <div class="field">
-          <label>Domain(s)</label>
-          <div class="chips" id="domains">
-            <div class="chip" onclick="this.classList.toggle('on')"><input value="adaptation">adaptation</div>
-            <div class="chip" onclick="this.classList.toggle('on')"><input value="agricultural-production">agricultural-production</div>
-            <div class="chip" onclick="this.classList.toggle('on')"><input value="boundaries">boundaries</div>
-            <div class="chip" onclick="this.classList.toggle('on')"><input value="climate">climate</div>
-            <div class="chip" onclick="this.classList.toggle('on')"><input value="hydrology">hydrology</div>
-            <div class="chip" onclick="this.classList.toggle('on')"><input value="mitigation">mitigation</div>
-            <div class="chip" onclick="this.classList.toggle('on')"><input value="socioeconomic">socioeconomic</div>
-          </div>
-        </div>
-        <div class="field" style="margin-top:12px">
-          <label>Not Recommended For</label>
-          <div class="dyn-list" id="nr-list"></div>
-          <button class="add-row" onclick="addNR()">+ Add Restriction</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Data Assets -->
-    <div class="sec open" id="s-data">
-      <div class="sec-hd" onclick="tog('data')">
-        <div class="sec-title">
-          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
-          Data Assets <span class="badge req">Required</span>
-        </div>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="sec-body">
-        <div class="dyn-list" id="data-list"></div>
-        <button class="add-row" onclick="addAsset()">+ Add Data Asset</button>
-      </div>
-    </div>
-
-    <!-- Processing -->
-    <div class="sec" id="s-processing">
-      <div class="sec-hd" onclick="tog('processing')">
-        <div class="sec-title">
-          <div class="sec-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></div>
-          Processing / Provenance <span class="badge opt">Optional</span>
-        </div>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="sec-body">
-        <div class="tip">If provided, at least one step must have <strong>id: source</strong>.</div>
-        <div class="dyn-list" id="proc-list"></div>
-        <button class="add-row" onclick="addProc()">+ Add Processing Step</button>
-      </div>
-    </div>
-
   </div><!-- /form-panel -->
 
   <!-- ── Chat drawer toggle tab ───────────────────────────────────────────────── -->
@@ -943,6 +653,322 @@
 <!-- ── Scripts ────────────────────────────────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
 <script>
+// ── Schema-driven form ────────────────────────────────────────────────────────────
+const SCHEMA_URL = 'https://cgiar-climate-data-hub.github.io/cdh-metadata-standard/v0.2.0/schemas/profiles/cdh.schema.bundled.json';
+
+const ICONS = {
+  core:       `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+  contacts:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  citation:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+  spatial:    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+  temporal:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+  cdh:        `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
+  data:       `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>`,
+  processing: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`,
+};
+
+const CHEV = `<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+// Extract enum values from a schema definition (handles direct enum, anyOf/oneOf, items.enum)
+function schemaEnum(def) {
+  if (!def) return null;
+  if (def.enum) return def.enum;
+  for (const key of ['anyOf', 'oneOf']) {
+    if (Array.isArray(def[key])) {
+      for (const d of def[key]) { if (d.enum) return d.enum; }
+    }
+  }
+  if (def.items?.enum) return def.items.enum;
+  return null;
+}
+
+// Safe HTML attribute escape
+function hesc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// Build a collapsible section element
+function makeSec(id, label, badgeTxt, iconSvg, open) {
+  const badgeClass = (badgeTxt === 'Required' || badgeTxt === 'At least one') ? 'req' : 'opt';
+  const div = document.createElement('div');
+  div.className = `sec${open ? ' open' : ''}`;
+  div.id = `s-${id}`;
+  div.innerHTML = `
+    <div class="sec-hd" onclick="tog('${id}')">
+      <div class="sec-title">
+        <div class="sec-icon">${iconSvg}</div>
+        ${label} <span class="badge ${badgeClass}">${badgeTxt}</span>
+      </div>
+      ${CHEV}
+    </div>
+    <div class="sec-body" id="sb-${id}"></div>`;
+  return div;
+}
+
+// Render a labelled field wrapper
+function fld(id, labelTxt, isReq, widget, hint) {
+  return `<div class="field">
+    <label${isReq ? ' class="req"' : ''} for="${hesc(id)}">${labelTxt}</label>
+    ${widget}
+    ${hint ? `<div class="hint">${hint}</div>` : ''}
+  </div>`;
+}
+
+function mkInput(id, placeholder, type) {
+  return `<input id="${hesc(id)}" type="${type || 'text'}" placeholder="${hesc(placeholder || '')}" />`;
+}
+
+function mkTextarea(id, placeholder, rows) {
+  return `<textarea id="${hesc(id)}" rows="${rows || 3}" placeholder="${hesc(placeholder || '')}"></textarea>`;
+}
+
+function mkSelect(id, options, onchange) {
+  const opts = options.map(([l, v]) => `<option value="${hesc(v !== undefined ? v : l)}">${hesc(l)}</option>`).join('');
+  return `<select id="${hesc(id)}"${onchange ? ` onchange="${onchange}"` : ''}>${opts}</select>`;
+}
+
+async function loadSchema() {
+  let schema = null;
+  try {
+    const res = await fetch(SCHEMA_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    schema = await res.json();
+    console.log('[CDH] Schema loaded from', SCHEMA_URL);
+  } catch (err) {
+    console.warn('[CDH] Schema load failed:', err.message, '— rendering with fallback values');
+  }
+  renderForm(schema);
+}
+
+function renderForm(schema) {
+  const sp   = schema?.properties || {};
+  const req  = new Set(schema?.required || []);
+  const panel = document.getElementById('form-panel');
+  panel.innerHTML = '';
+
+  // ── Core Identity ────────────────────────────────────────────────────────────
+  {
+    const sec = makeSec('core', 'Core Identity', 'Required', ICONS.core, true);
+    const body = sec.querySelector('#sb-core');
+    const rtEnum = schemaEnum(sp.resource_type) || ['dataset','software','service','document'];
+    const licOpts = [
+      ['— select —',''], ['CC-BY-4.0','CC-BY-4.0'], ['CC-BY-SA-4.0','CC-BY-SA-4.0'],
+      ['CC0-1.0','CC0-1.0'], ['CC-BY-NC-4.0','CC-BY-NC-4.0'], ['ODbL-1.0','ODbL-1.0'],
+      ['Custom…','_custom'],
+    ];
+    body.innerHTML = `
+      <div class="grid2">
+        ${fld('f-id', 'ID', req.has('id'), mkInput('f-id','my-dataset-slug'), sp.id?.description || 'Lowercase, digits, hyphens only')}
+        ${fld('f-rtype', 'Resource Type', req.has('resource_type'), mkSelect('f-rtype', rtEnum.map(v=>[v,v])))}
+      </div>
+      ${fld('f-title', 'Title', req.has('title'), mkInput('f-title','Human-readable dataset title'), sp.title?.description || '')}
+      ${fld('f-desc', 'Description', req.has('description'), mkTextarea('f-desc','2–5 sentences: what it contains, how it was produced, units, key caveats.',4), sp.description?.description || '')}
+      <div class="grid2">
+        <div class="field">
+          <label class="${req.has('license') ? 'req' : ''}" for="f-lic">License</label>
+          ${mkSelect('f-lic', licOpts, 'toggleCustomLic()')}
+          <input id="f-lic-custom" placeholder="Custom license string" style="display:none;margin-top:6px" />
+          ${sp.license?.description ? `<div class="hint">${sp.license.description}</div>` : ''}
+        </div>
+        ${fld('f-ver', 'Version', false, mkInput('f-ver','v1.0, 2020, v2r2…'), sp.version?.description || '')}
+      </div>
+      ${fld('f-kw', 'Keywords', req.has('keywords'), mkInput('f-kw','gridded, precipitation, rainfall  (comma-separated)'), 'At least one required')}
+      ${fld('f-note', 'Note / Caveats', false, mkTextarea('f-note','Optional: interpretation-critical remarks or usage warnings',2), sp.note?.description || '')}
+      <div class="grid2">
+        ${fld('f-sname', 'Series Name', false, mkInput('f-sname','MapSPAM, GLW, CHIRPS…'))}
+        ${fld('f-surl', 'Series URL', false, mkInput('f-surl','https://…','url'))}
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="f-access">Access</label>
+          ${mkSelect('f-access', [['public (default)','public'],['restricted','restricted'],['non-public','non-public']], 'toggleAccessNote()')}
+          ${sp.access?.description ? `<div class="hint">${sp.access.description}</div>` : ''}
+        </div>
+        ${fld('f-prev-ver', 'Previous Version', false, mkInput('f-prev-ver','predecessor-record-id'), sp.previous_version?.description || 'ID of the record this supersedes')}
+      </div>
+      <div id="f-access-note-wrap" style="display:none">
+        ${fld('f-access-note', 'Access Note', false, mkTextarea('f-access-note','Explain access restrictions, how to request access…',2), sp.access_note?.description || 'Required when access is restricted or non-public.')}
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-weight:normal;font-size:13px">
+          <input type="checkbox" id="f-deprecated" style="width:auto;margin:0" />
+          <span>Mark this record as <strong>deprecated</strong> (superseded by another record)</span>
+        </label>
+      </div>`;
+    panel.appendChild(sec);
+  }
+
+  // ── Contacts ─────────────────────────────────────────────────────────────────
+  {
+    const sec = makeSec('contacts', 'Contacts', 'Required', ICONS.contacts, true);
+    sec.querySelector('#sb-contacts').innerHTML = `
+      <div class="tip">At least one contact must include <strong>licensor</strong> in roles. Every entry must include <strong>organization</strong>.</div>
+      <div class="dyn-list" id="contacts-list"></div>
+      <button class="add-row" onclick="addContact()">+ Add Contact</button>`;
+    panel.appendChild(sec);
+  }
+
+  // ── Citation & DOI ───────────────────────────────────────────────────────────
+  {
+    const citProp = sp.citation?.properties || {};
+    const sec = makeSec('citation', 'Citation &amp; DOI', 'At least one', ICONS.citation, true);
+    sec.querySelector('#sb-citation').innerHTML = `
+      ${fld('f-doi', 'DOI (bare format)', false, mkInput('f-doi','10.7910/DVN/SWPENT'), sp.doi?.description || 'No https://doi.org/ prefix. If provided, citation is optional.')}
+      <div class="grid2">
+        ${fld('f-cauth', 'Citation Authors', true, mkInput('f-cauth','Author One, Author Two, Org Name'), citProp.authors?.description || 'Comma-separated names or organizations')}
+        ${fld('f-cdate', 'Publication Date', true, mkInput('f-cdate','2024 or 2024-06-15'), citProp.date?.description || '')}
+      </div>
+      <div class="grid2">
+        ${fld('f-ctitle', 'Citation Title', false, mkInput('f-ctitle','As appears in citation (may differ from record title)'))}
+        ${fld('f-cpub', 'Publisher', false, mkInput('f-cpub','Harvard Dataverse, FAO…'))}
+      </div>
+      ${fld('f-curl', 'Citation URL', false, mkInput('f-curl','https://…','url'))}`;
+    panel.appendChild(sec);
+  }
+
+  // ── Spatial ──────────────────────────────────────────────────────────────────
+  {
+    const spatProp = sp.spatial?.properties || {};
+    const resProp  = (spatProp.resolution?.items || spatProp.resolution)?.properties || {};
+    const resTypeEnum = schemaEnum(resProp.type) || ['xy','x','y','point','polygon'];
+    const resTypeOpts = [['— none —',''], ...resTypeEnum.map(v=>[v,v])];
+    const sec = makeSec('spatial', 'Spatial', 'Recommended', ICONS.spatial, true);
+    sec.querySelector('#sb-spatial').innerHTML = `
+      <div class="field">
+        <label>Bounding Box — [West, South, East, North]</label>
+        <div class="grid4">
+          <div><input id="f-bw" placeholder="West" /><div class="hint" style="text-align:center">West</div></div>
+          <div><input id="f-bs" placeholder="South" /><div class="hint" style="text-align:center">South</div></div>
+          <div><input id="f-be" placeholder="East" /><div class="hint" style="text-align:center">East</div></div>
+          <div><input id="f-bn" placeholder="North" /><div class="hint" style="text-align:center">North</div></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="f-crs">CRS</label>
+          <input id="f-crs" placeholder="EPSG:4326" value="EPSG:4326" />
+          ${spatProp.crs?.description ? `<div class="hint">${spatProp.crs.description}</div>` : ''}
+        </div>
+        ${fld('f-geo', 'Geography', false, mkInput('f-geo','world, ethiopia, kenya… (comma-separated)'), spatProp.geography?.description || '')}
+      </div>
+      <div class="grid3">
+        ${fld('f-rtype2', 'Resolution Type', false, mkSelect('f-rtype2', resTypeOpts))}
+        ${fld('f-rval', 'Value', false, mkInput('f-rval','0.08333333'))}
+        ${fld('f-runit', 'Unit', false, mkInput('f-runit','degree, meter…'))}
+      </div>
+      ${fld('f-rlabel', 'Resolution Label', false, mkInput('f-rlabel','5 arc-minutes (~10 km at equator)'))}`;
+    panel.appendChild(sec);
+  }
+
+  // ── Temporal ─────────────────────────────────────────────────────────────────
+  {
+    const tempProp = sp.temporal?.properties || {};
+    const sec = makeSec('temporal', 'Temporal', 'Optional', ICONS.temporal, false);
+    sec.querySelector('#sb-temporal').innerHTML = `
+      <div class="field" style="margin-bottom:10px">
+        <label>Mode</label>
+        <div style="display:flex;gap:14px;margin-top:4px">
+          <label style="text-transform:none;font-weight:normal;font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="radio" name="tmode" value="date" checked onchange="tmode('date')"> Single date / year
+          </label>
+          <label style="text-transform:none;font-weight:normal;font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="radio" name="tmode" value="range" onchange="tmode('range')"> Date span
+          </label>
+        </div>
+      </div>
+      <div id="td-date" class="field">
+        <label for="f-tdate">Date / Year</label>
+        <input id="f-tdate" placeholder="2020 or 2020-06-15" />
+        <div class="hint">${tempProp.date?.description || 'Any ISO 8601 precision: year (2020), month (2020-06), day'}</div>
+      </div>
+      <div id="td-range" style="display:none">
+        <div class="grid2">
+          <div class="field">
+            <label for="f-tstart">Start Date</label>
+            <input id="f-tstart" placeholder="2000-01-01" />
+          </div>
+          <div class="field">
+            <label for="f-tend">End Date</label>
+            <input id="f-tend" placeholder="2023-12-31 (blank = open-ended)" />
+          </div>
+        </div>
+      </div>`;
+    panel.appendChild(sec);
+  }
+
+  // ── CDH Domain ───────────────────────────────────────────────────────────────
+  {
+    const cdhProp    = sp.cdh?.properties || {};
+    const domainDef  = cdhProp.domain?.items || cdhProp.domain || {};
+    const domainEnum = schemaEnum(domainDef) || ['adaptation','agricultural-production','boundaries','climate','hydrology','mitigation','socioeconomic'];
+    const chips = domainEnum.map(d =>
+      `<div class="chip" onclick="this.classList.toggle('on')"><input value="${hesc(d)}">${hesc(d)}</div>`
+    ).join('');
+    const sec = makeSec('cdh', 'CDH Domain', 'Required', ICONS.cdh, true);
+    sec.querySelector('#sb-cdh').innerHTML = `
+      <div class="field">
+        <label>Domain(s)</label>
+        <div class="chips" id="domains">${chips}</div>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Not Recommended For</label>
+        <div class="dyn-list" id="nr-list"></div>
+        <button class="add-row" onclick="addNR()">+ Add Restriction</button>
+      </div>`;
+    panel.appendChild(sec);
+  }
+
+  // ── Data Assets ──────────────────────────────────────────────────────────────
+  {
+    const sec = makeSec('data', 'Data Assets', 'Required', ICONS.data, true);
+    sec.querySelector('#sb-data').innerHTML = `
+      <div class="dyn-list" id="data-list"></div>
+      <button class="add-row" onclick="addAsset()">+ Add Data Asset</button>`;
+    panel.appendChild(sec);
+  }
+
+  // ── Processing / Provenance ──────────────────────────────────────────────────
+  {
+    const sec = makeSec('processing', 'Processing / Provenance', 'Optional', ICONS.processing, false);
+    sec.querySelector('#sb-processing').innerHTML = `
+      <div class="tip">If provided, at least one step must have <strong>id: source</strong>.</div>
+      <div class="dyn-list" id="proc-list"></div>
+      <button class="add-row" onclick="addProc()">+ Add Processing Step</button>`;
+    panel.appendChild(sec);
+  }
+
+  // ── Funding ───────────────────────────────────────────────────────────────────
+  {
+    const sec = makeSec('funding', 'Funding', 'Optional', ICONS.core, false);
+    sec.querySelector('#sb-funding').innerHTML = `
+      <div class="dyn-list" id="fund-list"></div>
+      <button class="add-row" onclick="addFunding()">+ Add Funder</button>`;
+    panel.appendChild(sec);
+  }
+
+  // ── Additional Links ──────────────────────────────────────────────────────────
+  {
+    const addLinksDef = sp.additional_links?.items?.properties || {};
+    const sec = makeSec('links', 'Additional Links', 'Optional', ICONS.citation, false);
+    sec.querySelector('#sb-links').innerHTML = `
+      <div class="dyn-list" id="links-list"></div>
+      <button class="add-row" onclick="addLink()">+ Add Link</button>`;
+    panel.appendChild(sec);
+  }
+
+  // ── Related Publications ──────────────────────────────────────────────────────
+  {
+    const sec = makeSec('relpubs', 'Related Publications', 'Optional', ICONS.citation, false);
+    sec.querySelector('#sb-relpubs').innerHTML = `
+      <div class="dyn-list" id="relpub-list"></div>
+      <button class="add-row" onclick="addRelPub()">+ Add Publication</button>`;
+    panel.appendChild(sec);
+  }
+
+  // Wire field watchers and seed dynamic lists after DOM is populated
+  REQUIRED_IDS.forEach(watchField);
+  addContact();
+  addAsset();
+}
+
 // ── API config ──────────────────────────────────────────────────────────────────
 // ── OpenRouter config (supports CORS — works on GitHub Pages & locally) ──────────
 const OR_URL   = "https://openrouter.ai/api/v1/chat/completions";
@@ -1014,6 +1040,10 @@ FILL FIELD REFERENCE — flat JSON, all strings unless noted:
   temporal_start      span start e.g. "1983-01-01"
   temporal_end        span end — omit entirely for open-ended datasets
   domain              ARRAY e.g. ["climate"] or ["climate","agricultural-production"]
+  access              "public" | "restricted" | "non-public"  (default: public)
+  access_note         explain restrictions — required when access ≠ public
+  previous_version    predecessor record ID slug
+  deprecated          true | false
 
 TEMPORAL CADENCE NOTE: daily/monthly/annual cadence belongs in the YAML dimensions[]
 block, not in this form. Mention it in text; the user adds it to the YAML.
@@ -1061,11 +1091,18 @@ Follow the CDH metadata standard v0.2.0. Always emit a <fill> block when you kno
 // ── State ───────────────────────────────────────────────────────────────────────
 let chatHistory = [];
 let busy = false;
-let cCnt = 0, nrCnt = 0, aCnt = 0, pCnt = 0;
+let cCnt = 0, nrCnt = 0, aCnt = 0, pCnt = 0, fCnt = 0, lCnt = 0, rpCnt = 0;
 
 // ── Section toggle ──────────────────────────────────────────────────────────────
 function tog(id) {
   document.getElementById('s-' + id).classList.toggle('open');
+}
+
+// ── Access note toggle ──────────────────────────────────────────────────────────
+function toggleAccessNote() {
+  const v = document.getElementById('f-access')?.value || 'public';
+  const wrap = document.getElementById('f-access-note-wrap');
+  if (wrap) wrap.style.display = (v === 'restricted' || v === 'non-public') ? 'block' : 'none';
 }
 
 // ── License custom ──────────────────────────────────────────────────────────────
@@ -1305,6 +1342,108 @@ function getProcs() {
   }).filter(Boolean);
 }
 
+// ── Funding ──────────────────────────────────────────────────────────────────────
+function addFunding(d = {}) {
+  fCnt++;
+  const i = fCnt;
+  document.getElementById('fund-list').insertAdjacentHTML('beforeend', `
+    <div class="card" id="fund-${i}">
+      <button class="card-rm" onclick="rm('fund-${i}')">✕</button>
+      <div class="grid2">
+        <div class="field">
+          <label class="req">Funder Name</label>
+          <input id="fund-n-${i}" placeholder="e.g. CGIAR Fund, Bill &amp; Melinda Gates Foundation" value="${d.name||''}" />
+        </div>
+        <div class="field">
+          <label>Funder URL</label>
+          <input id="fund-u-${i}" type="url" placeholder="https://…" value="${d.url||''}" />
+        </div>
+      </div>
+    </div>`);
+}
+function getFunding() {
+  return [...document.querySelectorAll('#fund-list .card')].map(el => {
+    const i = el.id.split('-')[1];
+    const name = V(`fund-n-${i}`), url = V(`fund-u-${i}`);
+    if (!name) return null;
+    const f = { name };
+    if (url) f.url = url;
+    return f;
+  }).filter(Boolean);
+}
+
+// ── Additional Links ─────────────────────────────────────────────────────────────
+function addLink(d = {}) {
+  lCnt++;
+  const i = lCnt;
+  document.getElementById('links-list').insertAdjacentHTML('beforeend', `
+    <div class="card" id="lnk-${i}">
+      <button class="card-rm" onclick="rm('lnk-${i}')">✕</button>
+      <div class="grid2">
+        <div class="field">
+          <label class="req">URL</label>
+          <input id="lnk-url-${i}" type="url" placeholder="https://…" value="${d.url||''}" />
+        </div>
+        <div class="field">
+          <label>Relation (rel)</label>
+          <input id="lnk-rel-${i}" placeholder="related, docs, homepage, license…" value="${d.rel||''}" />
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Name</label>
+          <input id="lnk-n-${i}" placeholder="Display name" value="${d.name||''}" />
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <input id="lnk-d-${i}" placeholder="Brief description" value="${d.description||''}" />
+        </div>
+      </div>
+    </div>`);
+}
+function getLinks() {
+  return [...document.querySelectorAll('#links-list .card')].map(el => {
+    const i = el.id.split('-')[1];
+    const url = V(`lnk-url-${i}`), rel = V(`lnk-rel-${i}`);
+    const name = V(`lnk-n-${i}`), desc = V(`lnk-d-${i}`);
+    if (!url) return null;
+    const o = { url };
+    if (rel) o.rel = rel;
+    if (name) o.name = name;
+    if (desc) o.description = desc;
+    return o;
+  }).filter(Boolean);
+}
+
+// ── Related Publications ──────────────────────────────────────────────────────────
+function addRelPub(d = {}) {
+  rpCnt++;
+  const i = rpCnt;
+  document.getElementById('relpub-list').insertAdjacentHTML('beforeend', `
+    <div class="card" id="rp-${i}">
+      <button class="card-rm" onclick="rm('rp-${i}')">✕</button>
+      <div class="field">
+        <label>Citation</label>
+        <input id="rp-cit-${i}" placeholder="Full citation text (authors, title, journal, year…)" value="${d.citation||''}" />
+      </div>
+      <div class="field">
+        <label>DOI</label>
+        <input id="rp-doi-${i}" placeholder="10.xxxx/…  (bare format)" value="${d.doi||''}" />
+      </div>
+    </div>`);
+}
+function getRelPubs() {
+  return [...document.querySelectorAll('#relpub-list .card')].map(el => {
+    const i = el.id.split('-')[1];
+    const citation = V(`rp-cit-${i}`), doi = V(`rp-doi-${i}`);
+    if (!citation && !doi) return null;
+    const o = {};
+    if (citation) o.citation = citation;
+    if (doi) o.doi = doi;
+    return o;
+  }).filter(Boolean);
+}
+
 function rm(id) { document.getElementById(id)?.remove(); }
 const V = id => document.getElementById(id)?.value?.trim() || '';
 
@@ -1377,10 +1516,17 @@ function collect() {
       ...(resolution ? {resolution} : {}),
     } : undefined,
     temporal,
-    domains:   getDomains(),
-    notRec:    getNR(),
-    data:      getAssets(),
-    processing:getProcs(),
+    domains:     getDomains(),
+    notRec:      getNR(),
+    data:        getAssets(),
+    processing:  getProcs(),
+    access:      document.getElementById('f-access')?.value || 'public',
+    accessNote:  V('f-access-note') || undefined,
+    deprecated:  document.getElementById('f-deprecated')?.checked || false,
+    prevVersion: V('f-prev-ver') || undefined,
+    funding:     getFunding(),
+    addLinks:    getLinks(),
+    relPubs:     getRelPubs(),
   };
 }
 
@@ -1406,11 +1552,19 @@ function buildYAML(fd) {
   r.resource_type = fd.resource_type || 'dataset';
   if (fd.keywords?.length) r.keywords = fd.keywords;
   if (fd.note)        r.note = fd.note;
+  r.access = fd.access || 'public';
+  if (fd.accessNote)  r.access_note = fd.accessNote;
+  if (fd.deprecated)  r.deprecated = true;
+  if (fd.prevVersion) r.previous_version = fd.prevVersion;
 
   if (fd.contact?.length) r.contact = fd.contact;
 
   if (fd.citation)    r.citation = fd.citation;
   if (fd.doi)         r.doi = fd.doi;
+
+  if (fd.funding?.length)  r.funding = fd.funding;
+  if (fd.relPubs?.length)  r.related_publications = fd.relPubs;
+  if (fd.addLinks?.length) r.additional_links = fd.addLinks;
 
   r.created = today;
   r.updated = today;
@@ -1463,9 +1617,15 @@ function clearAll() {
   document.getElementById('f-rtype').value = 'dataset';
   document.getElementById('f-lic').value = '';
   document.getElementById('f-rtype2').value = '';
-  ['contacts-list','nr-list','data-list','proc-list'].forEach(id=>{document.getElementById(id).innerHTML='';});
+  ['contacts-list','nr-list','data-list','proc-list','fund-list','links-list','relpub-list'].forEach(id=>{
+    const el = document.getElementById(id); if (el) el.innerHTML='';
+  });
   document.querySelectorAll('.chip.on').forEach(c=>c.classList.remove('on'));
-  cCnt=nrCnt=aCnt=pCnt=0;
+  const accEl = document.getElementById('f-access');
+  if (accEl) { accEl.value = 'public'; toggleAccessNote(); }
+  const depEl = document.getElementById('f-deprecated');
+  if (depEl) depEl.checked = false;
+  cCnt=nrCnt=aCnt=pCnt=fCnt=lCnt=rpCnt=0;
   addContact(); addAsset();
   setStatus('Form cleared');
 }
@@ -1617,6 +1777,16 @@ function applyFill(text) {
     }
   }
   if (Array.isArray(json.domain) && json.domain.length) setDomains(json.domain);
+  if (json.access) {
+    const sel = document.getElementById('f-access');
+    if (sel) { sel.value = json.access; toggleAccessNote(); }
+  }
+  set('f-access-note', json.access_note);
+  set('f-prev-ver', json.previous_version);
+  if (json.deprecated !== undefined) {
+    const cb = document.getElementById('f-deprecated');
+    if (cb) cb.checked = !!json.deprecated;
+  }
   refreshValidation();
   return true;
 }
@@ -1844,6 +2014,11 @@ function validateRecord(fd) {
     req(hasSource, 'Processing', 'If processing steps are present, at least one must have id: "source"');
   }
 
+  // Access note required when access is restricted/non-public
+  if (fd.access === 'restricted' || fd.access === 'non-public') {
+    req(fd.accessNote, 'Access Note', 'access_note is required when access is restricted or non-public');
+  }
+
   // Warnings (recommended but not blocking)
   warn(fd.spatial?.bbox, 'Spatial', 'Bounding box recommended for all datasets');
   warn(fd.temporal, 'Temporal', 'Temporal coverage recommended');
@@ -2020,11 +2195,8 @@ if (!getKey()) setTimeout(openSettings, 600);
 // Load skill from GitHub (async — sets SYS when done)
 loadSkill();
 
-// Wire required field watchers
-REQUIRED_IDS.forEach(watchField);
-
-addContact();
-addAsset();
+// Fetch CDH schema and render form dynamically; wires field watchers + seeds cards when done
+loadSchema();
 </script>
 </body>
 </html>

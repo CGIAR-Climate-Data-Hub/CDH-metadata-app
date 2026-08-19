@@ -5,8 +5,19 @@ records. The form is **generated from the JSON Schema** — fields, labels, hint
 vocabularies and validation all come from the published profile, so a schema release usually
 needs no code change here.
 
-No build step, no framework. Open `index.html` from any static server; GitHub Pages serves
-`main` as-is.
+No build step, no framework, no dependencies.
+
+```sh
+python3 -m http.server 8000     # then http://localhost:8000
+```
+
+It has to be served, not opened as a file — the app is ES modules and browsers block
+module imports over `file://`, so double-clicking `index.html` gives you a blank page.
+GitHub Pages serves `main` as-is.
+
+(The old `server.py` and `proxy.py` are gone: both proxied the OpenCode Zen API, which
+the chat stopped using when it moved to OpenRouter and started calling it from the
+browser. Their remaining half was static file serving, which the line above does.)
 
 ```
 index.html        shell only — header, panels, modals (no logic, no inline handlers)

@@ -1,0 +1,4 @@
+node_modules/
+_site/
+sf.mjs
+__pycache__/

@@ -1,12 +1,12 @@
 // What changed in the schema, and what (if anything) the app owes it.
-// Run after every spec release:  node test/schema-drift.mjs
-// ponytail: zero deps — the validator is vendored, so this runs on a clean checkout.
-//   CDH_SPEC=/path/to/metadata   local spec repo (default ../../metadata)
-//   CDH_SCHEMA=<url|path>        validate against a specific bundle instead
+// Run after every spec release:  node check-schema.mjs
+// No dependencies — nothing to install.
+//   CDH_SPEC=/path/to/metadata   local spec repo (default ../metadata)
+//   CDH_SCHEMA=<url|path>        check against a specific bundle instead
 import fs from 'node:fs';
 
-const APP = new URL('..', import.meta.url).pathname;
-const SPEC = process.env.CDH_SPEC || new URL('../../metadata', import.meta.url).pathname;
+const APP = new URL('.', import.meta.url).pathname;
+const SPEC = process.env.CDH_SPEC || new URL('../metadata', import.meta.url).pathname;
 
 const { flatten, extensionRules, SECTIONS, HIDDEN, TEXTAREA, CHIP_MAX } =
   await import(`${APP}/schema-form.js`);

@@ -8,7 +8,7 @@ import fs from 'node:fs';
 const APP = new URL('.', import.meta.url).pathname;
 const SPEC = process.env.CDH_SPEC || new URL('../metadata', import.meta.url).pathname;
 
-const { flatten, extensionRules, SECTIONS, HIDDEN, TEXTAREA, CHIP_MAX } =
+const { flatten, extensionRules, unsupported, SECTIONS, HIDDEN, TEXTAREA, CHIP_MAX } =
   await import(`${APP}/schema-form.js`);
 
 const where = process.env.CDH_SCHEMA || `${SPEC}/spec/schemas/profiles/cdh.schema.bundled.json`;
@@ -63,20 +63,15 @@ const dead = [
 if (dead.length) { say('DEAD  ', `config points at properties the schema no longer has:\n         ${dead.join('\n         ')}`); todo++; }
 
 // ── 4. Shapes the generator can't render ──────────────────────────────────────────
-// The form renders nothing useful for these, so widget() in schema-form.js needs a
-// new branch. Nothing in the current schema hits this.
-const unrenderable = [], untitled = [];
+// Same check the app runs in the browser, so the two cannot disagree.
+const unrenderable = unsupported(props);
+const untitled = [];
 (function walk(def, ptr) {
   if (!def || typeof def !== 'object') return;
-  const branches = def.anyOf || def.oneOf || [];
-  if (branches.filter(b => b.properties || b.type === 'object').length > 1) unrenderable.push([ptr, 'oneOf of objects']);
-  else if (def.patternProperties) unrenderable.push([ptr, 'patternProperties (map)']);
-  else if (def.additionalProperties && typeof def.additionalProperties === 'object') unrenderable.push([ptr, 'open map']);
-  else if (def.$ref) unrenderable.push([ptr, `unresolved $ref ${def.$ref}`]);
   // Tuples render positionally; without slot titles the inputs are labelled by index.
-  if (def.prefixItems?.some(s => !s.title)) untitled.push([ptr, def.prefixItems.length]);
+  if (def.prefixItems?.some(sl => !sl.title)) untitled.push([ptr, def.prefixItems.length]);
   for (const [k, v] of Object.entries(def.properties || {})) walk(v, `${ptr}/${k}`);
-  for (const b of [...branches, ...(def.allOf || [])]) walk(b, ptr);
+  for (const b of [...(def.anyOf || []), ...(def.oneOf || []), ...(def.allOf || [])]) walk(b, ptr);
   if (def.items) walk(def.items, `${ptr}/*`);
 })({ properties: props }, '#');
 if (untitled.length) {

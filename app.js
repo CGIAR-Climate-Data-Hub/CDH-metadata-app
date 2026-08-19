@@ -1,5 +1,5 @@
 // Wiring: fetch the schema, build the form, YAML preview, validation panel.
-import { createForm, flatten, html, raw, DERIVED } from './schema-form.js';
+import { createForm, flatten, unsupported, html, raw, DERIVED } from './schema-form.js';
 import { initChat } from './chat.js';
 import { initSubmit } from './submit.js';
 
@@ -243,6 +243,19 @@ if (draft) {
   form.setData(draft);
 }
 keepDrafts = true;
+
+// The schema URL pins an immutable release, so this can only change when someone bumps
+// the pin — which is exactly when they should see it, in the browser, before merging.
+const gaps = unsupported(flatten(schema).props);
+if (gaps.length) {
+  console.warn('[CDH] shapes this form cannot render:', gaps);
+  $('form-panel').prepend(html`<div class="tip">
+    This schema has ${gaps.length} field${gaps.length === 1 ? '' : 's'} the form cannot render
+    properly: ${gaps.map(([p, why]) => `${p.replace('#/', '')} (${why})`).join(', ')}.
+    They are shown as placeholders — anything entered elsewhere is still fine, but these
+    need a branch in widget() before the pin is bumped.
+  </div>`);
+}
 
 initChat({ form, schema, setStatus, act });
 initSubmit({ form, setStatus, act });

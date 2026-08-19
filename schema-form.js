@@ -176,6 +176,32 @@ function coerce(value, def) {
 // Belt to the coercion's braces: a value the schema does not describe must still not
 // throw while painting.
 const asArray = v => Array.isArray(v) ? v : v == null ? [] : [v];
+// Shapes the dispatch table has no branch for. Falling through to a text input renders
+// something plausible and silently loses whatever the field really holds, so the form
+// says so instead — and app.js warns once for the whole record.
+export function unsupportedReason(def) {
+  if (!def || typeof def !== 'object') return null;
+  const branches = def.anyOf || def.oneOf || [];
+  if (branches.filter(b => b.properties || b.type === 'object').length > 1) return 'oneOf of objects';
+  if (def.patternProperties) return 'patternProperties (map)';
+  if (def.additionalProperties && typeof def.additionalProperties === 'object') return 'open map';
+  if (def.$ref) return `unresolved $ref ${def.$ref}`;
+  return null;
+}
+
+export function unsupported(props) {
+  const out = [];
+  (function walk(def, ptr) {
+    if (!def || typeof def !== 'object') return;
+    const why = unsupportedReason(def);
+    if (why) out.push([ptr, why]);
+    for (const [k, v] of Object.entries(def.properties || {})) walk(v, `${ptr}/${k}`);
+    for (const b of [...(def.anyOf || []), ...(def.oneOf || []), ...(def.allOf || [])]) walk(b, ptr);
+    if (def.items) walk(def.items, `${ptr}/*`);
+  })({ properties: props }, '#');
+  return out;
+}
+
 const label = k => k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 const esc = s => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -305,6 +331,10 @@ export function createForm({
   //
   // anyOf/oneOf unions of scalars collapse to their first branch (see scalarize).
   function widget(key, d, path, raw = d, req = false) {
+    // Checked on the raw node: scalarize() would have collapsed a oneOf of objects to
+    // its first branch, rendering one shape and dropping the others without a word.
+    const why = unsupportedReason(raw);
+    if (why) return el('div', 'hint', `${why} — needs a branch in widget()`);
     if (d.enum) return select(d.enum, path, d.default);
     if (d.type === 'boolean') return checkbox(path);
     if (d.type === 'number' || d.type === 'integer') return scalar(key, d, path, 'number');

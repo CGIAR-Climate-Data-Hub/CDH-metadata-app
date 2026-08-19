@@ -49,3 +49,8 @@ It exits non-zero only when a code change is genuinely needed, and tells you whi
 - **`BUMP`** — a release happened; update the pinned `/vX.Y.Z/` in `SCHEMA_URL`.
 - **`WIDGET`** — a shape with no generic renderer (a `oneOf` of objects, an open map). Add a
   branch to `widget()` in `schema-form.js`. Nothing in the current schema needs one.
+
+The app runs that same check in the browser: if the schema it loaded contains a shape the
+form cannot render, the field shows a placeholder instead of a text box and a banner names
+every one of them. `SCHEMA_URL` pins an immutable release, so this can only appear when
+someone bumps the pin — which is when they should see it.

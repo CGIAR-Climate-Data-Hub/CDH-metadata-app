@@ -12,7 +12,7 @@
 <header>
   <div class="hd-left">
     <div class="logo">CDH</div>
-    <h1>Metadata Generator <small>v0.2.0</small></h1>
+    <h1>Metadata Generator <small data-cdh-version></small></h1>
   </div>
   <div class="hd-right">
     <label class="btn btn-ghost" title="Open an existing record for editing">
@@ -57,7 +57,7 @@
         <small id="skill-status" style="margin-left:8px;font-size:10px;color:rgba(255,255,255,.45)">⏳ Loading skill…</small>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
-        <span class="ai-pill">CDH v0.2.0</span>
+        <span class="ai-pill">CDH <span data-cdh-version></span></span>
         <button class="btn btn-outline" style="padding:5px 8px" data-act="clearChat" title="Clear chat history"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
         <button class="btn btn-outline" style="padding:5px 8px" data-act="openSettings" title="API Settings"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/></svg></button>
         <button class="btn btn-outline" style="padding:5px 8px" data-act="toggleChat" title="Close panel"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -69,7 +69,7 @@
         <div class="avatar">AI</div>
         <div>
           <div class="bubble">
-            Hi! I'm your CDH Metadata Assistant. I can help you fill fields, suggest values, validate entries, and answer questions about the CDH v0.2.0 standard.<br><br>
+            Hi! I'm your CDH Metadata Assistant. I can help you fill fields, suggest values, validate entries, and answer questions about the CDH <span data-cdh-version></span> standard.<br><br>
             Try: <em>"My dataset is a 5 arc-minute global crop production raster for 2020 by IFPRI, licensed CC-BY-SA-4.0"</em> — I'll pre-fill what I can.
           </div>
         </div>
@@ -103,7 +103,7 @@
 <div class="overlay" id="modal" data-close="closeModal">
   <div class="modal">
     <div class="modal-hd">
-      <h3>Generated YAML — CDH Metadata v0.2.0</h3>
+      <h3>Generated YAML — CDH Metadata <span data-cdh-version></span></h3>
       <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" data-act="closeModal">✕ Close</button>
     </div>
     <div id="val-summary-bar" style="display:none"></div>

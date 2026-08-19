@@ -83,30 +83,21 @@ if (unrenderable.length) {
   todo++;
 }
 
-// ── 4b. The vendored cross-field rules vs the spec repo's source ──────────────────
-// vendor/cross-field.js is a copy of checkCrossFieldRules until the spec repo
-// publishes it. Compare the statements, ignoring the wrapper and formatting.
-const bodyOf = (text, startsWith) => {
-  const lines = text.split('\n');
-  const from = lines.findIndex(l => l.startsWith(startsWith));
-  if (from < 0) return null;
-  const to = lines.findIndex((l, i) => i > from && l === '}');
-  return lines.slice(from + 1, to).map(l => l.trim()).filter(l => l && !l.startsWith('//')).join('\n');
-};
+// ── 4b. The vendored cross-field rules vs the spec repo's copy ────────────────────
+// vendor/cross-field.js is a verbatim copy of spec/checks/cross-field.js until a release
+// publishes it, so this is a whole-file comparison rather than a parse.
+const strip = t => t.split('\n').filter(l => l.trim() && !l.trim().startsWith('//')).join('\n');
 const vendored = fs.readFileSync(`${APP}/vendor/cross-field.js`, 'utf8');
-const specSrc = (() => { try { return fs.readFileSync(`${SPEC}/scripts/validate-yaml.js`, 'utf8') } catch { return null } })();
-if (!specSrc) {
+const source = (() => {
+  try { return fs.readFileSync(`${SPEC}/spec/checks/cross-field.js`, 'utf8') } catch { return null }
+})();
+if (!source) {
   console.log('\nvendored cross-field rules: spec repo not reachable, cannot compare');
+} else if (strip(vendored) === strip(source)) {
+  console.log('\nvendored cross-field rules: identical to spec/checks/cross-field.js');
 } else {
-  const mine = bodyOf(vendored, 'export default function checkCrossFieldRules')
-    ?.replace('const validateSpdxExpression = isSpdx;', '').trim();
-  const theirs = bodyOf(specSrc, 'function checkCrossFieldRules');
-  if (mine === theirs) {
-    console.log('\nvendored cross-field rules: identical to the spec repo source');
-  } else {
-    say('COPY  ', 'vendor/cross-field.js has drifted from checkCrossFieldRules in the spec repo — re-extract it');
-    todo++;
-  }
+  say('COPY  ', 'vendor/cross-field.js has drifted from spec/checks/cross-field.js — re-copy it');
+  todo++;
 }
 
 // ── 5. Enums that crossed the chips/datalist threshold ────────────────────────────

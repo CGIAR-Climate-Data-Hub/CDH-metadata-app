@@ -35,6 +35,13 @@ check-schema.mjs  reports what a spec release owes the app (not shipped to the s
 Buttons carry `data-act="name"`; one delegated listener in `app.js` dispatches them. Modules
 register their own actions via `act(name, fn)`.
 
+## Bumping the schema version
+
+One line, `VERSION` in `app.js`. The schema URL, the checks URL, the draft key and the
+version shown in the header, the AI pill and the YAML dialog all come from it or from the
+`$id` of the schema that actually loaded — so a stale label is not possible, and a
+mismatch between the pin and the schema's own version is reported in the console.
+
 ## When the schema changes
 
 Run `node check-schema.mjs` after a spec release. No dependencies, nothing to install.

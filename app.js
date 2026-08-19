@@ -3,24 +3,22 @@ import { createForm, flatten, unsupported, html, raw, DERIVED } from './schema-f
 import { initChat } from './chat.js';
 import { initSubmit } from './submit.js';
 
-const SCHEMA_URL = 'https://cgiar-climate-data-hub.github.io/cdh-metadata-standard/v0.2.0/schemas/profiles/cdh.schema.bundled.json';
-// The spec repo's cross-field rules — the checks no JSON Schema keyword can express.
-// Vendored for now: the spec repo does not publish them yet.
-//
-// TO MIGRATE, once v0.3 publishes it under /vX.Y.Z/checks/:
-//   1. delete vendor/cross-field.js
-//   2. replace the CHECKS_URL line below with:
-//        const CHECKS_URL = SCHEMA_URL.replace(/\/schemas\/.*$/, '/checks/cross-field.js');
-//   That is the whole change — the loader and the contract stay identical, and deriving
-//   the URL from SCHEMA_URL is what keeps the rules pinned to the same release as the
-//   schema they validate against.
-//   Ask for .js, not .mjs: Pages' MIME type for .mjs is unverified, and a module import
-//   fails outright without a JavaScript content type.
+// Bumping a release is this one line. Everything else — the checks URL, the version the
+// UI shows, the draft key — comes from here or from the schema that actually loaded.
+const VERSION = 'v0.2.0';
+const BASE = `https://cgiar-climate-data-hub.github.io/cdh-metadata-standard/${VERSION}`;
+const SCHEMA_URL = `${BASE}/schemas/profiles/cdh.schema.bundled.json`;
+// The standard's own cross-field rules. spec/checks/cross-field.js is written and the
+// publish workflow mirrors it, so this becomes `${BASE}/checks/cross-field.js` as soon as
+// a release ships — one line, then delete vendor/cross-field.js. Until then it is a
+// verbatim local copy, and check-schema.mjs fails if the two diverge.
 const CHECKS_URL = new URL('./vendor/cross-field.js', import.meta.url);
 const SPDX_URL = 'https://esm.sh/spdx-expression-validate@2';
 // A long form and no persistence meant a refresh threw the work away.
 const DRAFT_KEY = 'cdh_draft';
-const SCHEMA_VERSION = SCHEMA_URL.match(/\/(v\d+\.\d+\.\d+)\//)?.[1] ?? 'unknown';
+// Taken from the schema that loaded, not from the URL: if the two ever disagree the
+// record is stamped with what was actually read, and the mismatch is reported below.
+let SCHEMA_VERSION = VERSION;
 
 const $ = id => document.getElementById(id);
 export const setStatus = msg => { $('status').textContent = msg; };
@@ -220,6 +218,14 @@ $('load-yaml').addEventListener('change', async e => {
 const res = await fetch(SCHEMA_URL);
 if (!res.ok) throw new Error(`Could not load the CDH schema (HTTP ${res.status})`);
 const schema = await res.json();
+
+// The version shown in the header, the AI pill and the YAML dialog is whatever the
+// schema says it is, so a stale label is not possible.
+SCHEMA_VERSION = schema.$id?.match(/\/(v\d+\.\d+\.\d+)\//)?.[1] ?? VERSION;
+for (const n of document.querySelectorAll('[data-cdh-version]')) n.textContent = SCHEMA_VERSION;
+if (SCHEMA_VERSION !== VERSION) {
+  console.warn(`[CDH] pinned ${VERSION} but the schema declares ${SCHEMA_VERSION}`);
+}
 
 form = createForm({
   schema,

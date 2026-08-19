@@ -1,24 +1,34 @@
-// The CDH cross-field rules: the checks no JSON Schema keyword can express --
-// value-to-value comparisons, name cross-references between arrays, per-property
-// uniqueness, and the SPDX expression grammar.
-//
-// THIS IS A COPY. The original lives in the spec repo at
-// scripts/validate-yaml.js (checkCrossFieldRules), which is what the catalog's CI
-// runs. Copied because the spec repo does not publish it yet.
-//
-// TO MIGRATE, once the spec repo publishes it: the steps are in app.js, next to the
-// CHECKS_URL it replaces. This file is deleted as part of that change.
-//
-// TO REFRESH THIS COPY while it is still a copy, re-extract from the spec repo;
-// test/schema-drift.mjs fails when this file and that function disagree.
-//
-// The one edit made during extraction: validateSpdxExpression is injected rather
-// than imported, so the same source runs in a browser and in Node.
+// A COPY of spec/checks/cross-field.js from the CDH metadata standard, kept here only
+// until a release publishes it. Verbatim — no local edits. The migration steps are in
+// app.js beside the CHECKS_URL it replaces; this file is deleted as part of that change.
+// check-schema.mjs fails if this copy and the source diverge.
 
-const list = (v) => (Array.isArray(v) ? v : []);
-const CDH_VERSIONED_URL =
+// Cross-field checks for a CDH metadata record - the rules from standard.md
+// that JSON Schema cannot state, kept beside the schema and published with it.
+//
+// Dependency-free ESM, so the same source runs in Node and in a browser:
+//
+//   import check from "https://cgiar-climate-data-hub.github.io/cdh-metadata-standard/vX.Y.Z/checks/cross-field.js";
+//   const errors = check(record);                       // messages, empty when the record passes
+//   const errors = check(record, { isSpdx });           // with an SPDX expression validator
+//
+// `isSpdx` is injected because SPDX validation is the only rule needing a
+// library. Omit it and license expressions are accepted unchecked; the rest of
+// the rules are unaffected. In Node, pass `spdx-expression-validate`.
+//
+// This file carries no schema rules. Anything a schema keyword can state lives
+// in the schema, where every validator enforces it.
+
+// Matches CDH-hosted, version-tagged schema URLs; captures the version segment.
+export const CDH_VERSIONED_URL =
   /^(https:\/\/cgiar-climate-data-hub\.github\.io\/cdh-metadata-standard)\/(v\d+\.\d+\.\d+)\//;
 
+export const list = (v) => (Array.isArray(v) ? v : []);
+
+// Cross-field rules documented in standard.md that the schema cannot express:
+// value-to-value comparisons (dates, lengths), name cross-references between
+// arrays, per-property uniqueness, and the SPDX expression grammar. Anything a
+// schema keyword can state belongs in the schema, not here.
 export default function checkCrossFieldRules(doc, { isSpdx = () => true } = {}) {
   const validateSpdxExpression = isSpdx;
   const out = [];

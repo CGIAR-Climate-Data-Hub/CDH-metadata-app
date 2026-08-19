@@ -7,11 +7,10 @@ import { JSDOM } from 'jsdom';
 
 const APP = new URL('..', import.meta.url).pathname;
 const SPEC = process.env.CDH_SPEC || new URL('../../metadata', import.meta.url).pathname;
-const HERE = new URL('.', import.meta.url).pathname;
 
 
 const dom = new JSDOM('<body><div id="mount"></div></body>');
-for (const k of ['document', 'HTMLElement', 'Node', 'Event', 'KeyboardEvent']) global[k] = dom.window[k];
+for (const k of ['document', 'HTMLElement', 'Node', 'Event']) global[k] = dom.window[k];
 global.window = dom.window;
 
 const { createForm, flatten, extensionRules } = await import(`${APP}/schema-form.js`);
@@ -372,7 +371,7 @@ const foreign = {
 const m3 = document.createElement('div');
 document.body.append(m3);
 let foreignOut;
-const ff = createForm({
+createForm({
   schema: foreign, mount: m3,
   bookkeeping: () => () => ({}),                     // no CDH keys injected
   sections: [{ title: 'Trial', keys: ['slug', 'stage', 'replicates', 'open_access'] }],

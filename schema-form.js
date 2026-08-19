@@ -437,7 +437,8 @@ export function createForm({
 
     const box = el('div');
     const list = el('div', 'dyn-list');
-    const add = el('button', 'add-row', `+ Add ${label(key).replace(/s$/, '').toLowerCase()}`);
+    const add = el('button', 'add-row');
+    add.textContent = `+ Add ${label(key).replace(/s$/, '').toLowerCase()}`;
     // A required list opens with one card ready to fill; an empty card costs nothing
     // since it stays out of the record until typed into.
     let shown = req ? 1 : 0;

@@ -39,16 +39,25 @@ const kitchenYaml = await (async () => {
 
 const skill = 'STAGE 1: ...';   // stand-in for the GitHub-hosted skill
 
-const dom = new JSDOM(fs.readFileSync(`${APP}/index.html`, 'utf8'), {
-  url: 'https://example.org/', runScripts: 'outside-only', pretendToBeVisual: true,
-});
+// One browser, installed as the globals the app expects. Called twice: once for the
+// app under test, once to simulate a reload with the same storage.
+const GLOBALS = ['window', 'document', 'HTMLElement', 'Node', 'Event', 'getComputedStyle',
+  'CustomEvent', 'localStorage', 'sessionStorage', 'location', 'Blob', 'URL', 'confirm', 'alert'];
+function newWindow(seed = {}) {
+  const d = new JSDOM(fs.readFileSync(`${APP}/index.html`, 'utf8'), {
+    url: 'https://example.org/', runScripts: 'outside-only', pretendToBeVisual: true,
+  });
+  for (const k of GLOBALS) Object.defineProperty(global, k, { value: d.window[k], configurable: true, writable: true });
+  Object.defineProperty(global, 'navigator', { value: d.window.navigator, configurable: true });
+  global.jsyaml = d.window.jsyaml = jsyaml;
+  d.window.URL.createObjectURL = () => 'blob:stub';
+  d.window.confirm = () => true;                     // jsdom's returns undefined
+  Object.defineProperty(global, 'confirm', { value: d.window.confirm, configurable: true });
+  for (const [k, v] of Object.entries(seed)) d.window.localStorage.setItem(k, v);
+  return d;
+}
+const dom = newWindow();
 const { window } = dom;
-for (const k of ['window', 'document', 'HTMLElement', 'Node', 'Event',
-  'getComputedStyle', 'CustomEvent', 'localStorage', 'sessionStorage', 'location', 'Blob', 'URL', 'confirm', 'alert'])
-  Object.defineProperty(global, k, { value: window[k], configurable: true, writable: true });
-Object.defineProperty(global, 'navigator', { value: window.navigator, configurable: true });
-global.jsyaml = window.jsyaml = jsyaml;
-window.URL.createObjectURL = () => 'blob:stub';
 
 const calls = [];
 global.fetch = async (url, opts) => {
@@ -176,7 +185,6 @@ ok(/problem/.test($('val-summary-bar').textContent), `incomplete record reports 
 ok($('val-results').textContent.includes('description'), 'missing required fields are listed by name');
 
 // ── submit hand-off carries the previewed bytes ───────────────────────────────────
-const yamlShown = $('yaml-out').textContent;
 window.sessionStorage.setItem('gh_token', 'ghp_test');   // the default, tab-scoped
 click('[data-act=validateThenSubmit]');
 await wait(50);
@@ -286,18 +294,7 @@ ok(stored?.data?.id === 'draft-survives', `edits are written to localStorage: ${
 ok(stored.version === 'v0.2.0', `stamped with the schema version (${stored.version}) so an old draft is not half-loaded`);
 
 // Simulate the reload: fresh document, fresh module instance, same localStorage.
-const dom2 = new JSDOM(fs.readFileSync(`${APP}/index.html`, 'utf8'),
-  { url: 'https://example.org/', runScripts: 'outside-only', pretendToBeVisual: true });
-for (const k of ['window', 'document', 'HTMLElement', 'Node', 'Event', 'getComputedStyle',
-  'CustomEvent', 'localStorage', 'sessionStorage', 'location', 'Blob', 'URL', 'confirm', 'alert'])
-  Object.defineProperty(global, k, { value: dom2.window[k], configurable: true, writable: true });
-Object.defineProperty(global, 'navigator', { value: dom2.window.navigator, configurable: true });
-global.jsyaml = dom2.window.jsyaml = jsyaml;
-dom2.window.URL.createObjectURL = () => 'blob:stub';
-dom2.window.confirm = () => true;   // jsdom's confirm returns undefined
-Object.defineProperty(global, 'confirm', { value: dom2.window.confirm, configurable: true });
-for (const [k, v] of Object.entries({ or_api_key: 'sk-or-test', cdh_draft: JSON.stringify(stored) }))
-  dom2.window.localStorage.setItem(k, v);
+const dom2 = newWindow({ or_api_key: 'sk-or-test', cdh_draft: JSON.stringify(stored) });
 const app2 = await import(`${APP}/app.js?reload=1`);
 await wait(400);
 ok(app2.form.record().id === 'draft-survives', `the draft comes back after a reload: ${app2.form.record().id}`);

@@ -7,7 +7,6 @@ import fs from 'node:fs';
 
 const APP = new URL('..', import.meta.url).pathname;
 const SPEC = process.env.CDH_SPEC || new URL('../../metadata', import.meta.url).pathname;
-const HERE = new URL('.', import.meta.url).pathname;
 
 const { flatten, extensionRules, SECTIONS, HIDDEN, TEXTAREA, CHIP_MAX } =
   await import(`${APP}/schema-form.js`);

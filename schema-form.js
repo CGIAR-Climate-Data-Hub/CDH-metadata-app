@@ -712,6 +712,18 @@ export function createForm({
   const quoted = e => /"([^"]+)"/.exec(e.error)?.[1];
   const listed = e => e.error.match(/\[(.*)\]/)?.[1].split(',') || [];
 
+  // Reads a `contains` subschema back into prose. Only the constrained leaf carries the
+  // news — the rest of the shape is what every entry already has to satisfy anyway.
+  const shapeOf = d => {
+    if (!d || typeof d !== 'object') return '';
+    if (d.const != null) return `"${d.const}"`;
+    if (d.enum?.length) return `one of ${d.enum.join(', ')}`;
+    if (d.contains) return `including ${shapeOf(d.contains)}`;
+    const hit = Object.entries(d.properties || {})
+      .find(([, v]) => v.const != null || v.enum?.length || v.contains);
+    return hit ? `${hit[0]} ${shapeOf(hit[1])}` : '';
+  };
+
   // Phrasing only — the rules all come from the schema. Validators emit machine
   // strings ("String does not match pattern"), so lean on the schema's own
   // annotations (examples, title) to say something a human can act on.
@@ -728,6 +740,14 @@ export function createForm({
     }
     if ((e.keyword === 'pattern' || e.keyword === 'format') && f.d.examples?.length)
       return `must look like: ${f.d.examples.slice(0, 3).join(', ')}`;
+    // "Array does not contain item matching schema" names neither the field that has to
+    // match nor the value it wants, and both are sitting in the schema.
+    if (e.keyword === 'contains') {
+      const need = shapeOf(f.d.contains);
+      // "entry" rather than the field's own name: these are plural (dimensions,
+      // processing) and the label above already says which list this is.
+      if (need) return `at least one entry must have ${need}`;
+    }
     if (e.keyword === 'enum') {
       const bad = getIn(rec, path);
       const opts = listed(e);

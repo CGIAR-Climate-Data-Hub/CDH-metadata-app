@@ -91,6 +91,25 @@ export default function checkCrossFieldRules(doc, { isSpdx = () => true } = {}) 
       }
     }
   });
+  // dimensions[] and variables[] share one namespace: cube:dimensions and
+  // cube:variables are keyed by name, so a duplicate silently overwrites its
+  // twin on encode and an axis or measure disappears without an error. They are
+  // also the columns of one table, and the tokens href_template resolves.
+  const declaredNames = new Set();
+  for (const [field, entries] of [
+    ["dimensions", doc?.dimensions],
+    ["variables", doc?.variables],
+  ]) {
+    list(entries).forEach((entry, i) => {
+      if (typeof entry?.name !== "string") return;
+      if (declaredNames.has(entry.name)) {
+        out.push(
+          `/${field}/${i}/name: duplicate name "${entry.name}" - dimensions[] and variables[] share one namespace, and a duplicate would overwrite its twin when serialized`,
+        );
+      }
+      declaredNames.add(entry.name);
+    });
+  }
   const varNames = new Set(list(doc?.variables).map((v) => v?.name));
   list(doc?.classes).forEach((cls, i) => {
     if (cls?.variable != null && !varNames.has(cls.variable)) {

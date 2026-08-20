@@ -615,6 +615,12 @@ export function createForm({
         path = path === '#' ? `#/${miss}` : `${path}/${miss}`;
         if (!touched.has(path) && !showAll) continue;            // don't shout at an untouched form
       }
+      if (e.keyword === 'additionalProperties') {
+        const key = /"([^"]+)"/.exec(e.error)?.[1];
+        // When a sibling constraint fails the whole object is re-reported, naming
+        // properties that are perfectly valid. Only a key with no field is unknown.
+        if (!key || fields.has(`${path === '#' ? '#' : path}/${key}`)) continue;
+      }
       const at = owner(path);
       if (!at) { general.push(clean(e)); continue; }
       if (perField.has(at)) continue;                           // first message wins
@@ -646,6 +652,11 @@ export function createForm({
       const key = /"([^"]+)"/.exec(e.error)?.[1];
       return key ? `"${key}" is not a field here — it may have moved or been renamed`
         : clean(e);
+    }
+    if (e.keyword === 'not') {
+      const no = f.d.not ?? {};
+      if (no.const != null) return `must not be "${no.const}"`;
+      if (no.enum?.length) return `must not be one of ${no.enum.join(', ')}`;
     }
     if ((e.keyword === 'pattern' || e.keyword === 'format') && f.d.examples?.length)
       return `must look like: ${f.d.examples.slice(0, 3).join(', ')}`;

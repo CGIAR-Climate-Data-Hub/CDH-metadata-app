@@ -669,14 +669,24 @@ export function createForm({
   function problems() {
     const rec = record();
     const { valid, errors } = validator.validate(rec);
-    const perField = new Map(), general = [];
+    const perField = new Map(), general = [], alts = new Map();
     for (const e of errors) {
       if (STRUCTURAL.has(e.keyword)) continue;
       const alt = /\/(anyOf|oneOf)\//.test(e.keywordLocation);
       let path = e.instanceLocation;
       if (e.keyword === 'required') {
         const miss = quoted(e);
-        if (!miss || alt) { general.push(clean(e)); continue; }  // "citation OR doi" is not one field's fault
+        // "citation OR doi" is not one field's fault. The branches are alternatives, so
+        // collect the group and speak once: a line per branch reads as though every one
+        // of them were missing something it needed.
+        if (!miss || alt) {
+          if (!miss) general.push(clean(e));
+          else {
+            const group = `${path} ${e.keywordLocation.replace(/\/(anyOf|oneOf)\/\d+\/.*$/, '/$1')}`;
+            alts.set(group, [...alts.get(group) ?? [], miss]);
+          }
+          continue;
+        }
         path = path === '#' ? `#/${miss}` : `${path}/${miss}`;
         if (!touched.has(path) && !showAll) continue;            // don't shout at an untouched form
       }
@@ -690,6 +700,13 @@ export function createForm({
       if (!at) { general.push(clean(e)); continue; }
       if (perField.has(at)) continue;                           // first message wins
       perField.set(at, message(e, fields.get(at), path, rec));
+    }
+
+    for (const missing of alts.values()) {
+      const uniq = [...new Set(missing)];
+      general.push(uniq.length > 1
+        ? `either ${uniq.slice(0, -1).join(', ')} or ${uniq.at(-1)} is required`
+        : `does not have required property "${uniq[0]}"`);
     }
 
     // The injected checks are as binding as the schema's own; a record that fails

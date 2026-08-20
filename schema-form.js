@@ -606,13 +606,13 @@ export function createForm({
       const alt = /\/(anyOf|oneOf)\//.test(e.keywordLocation);
       let path = e.instanceLocation;
       if (e.keyword === 'required') {
-        const miss = /"([^"]+)"/.exec(e.error)?.[1];
+        const miss = quoted(e);
         if (!miss || alt) { general.push(clean(e)); continue; }  // "citation OR doi" is not one field's fault
         path = path === '#' ? `#/${miss}` : `${path}/${miss}`;
         if (!touched.has(path) && !showAll) continue;            // don't shout at an untouched form
       }
       if (e.keyword === 'additionalProperties') {
-        const key = /"([^"]+)"/.exec(e.error)?.[1];
+        const key = quoted(e);
         // When a sibling constraint fails the whole object is re-reported, naming
         // properties that are perfectly valid. Only a key with no field is unknown.
         if (!key || fields.has(`${path === '#' ? '#' : path}/${key}`)) continue;
@@ -640,12 +640,18 @@ export function createForm({
 
   const clean = e => e.error.replace(/^Instance /, '').replace(/\.$/, '');
 
+  // The validator hands back English, so the offending key has to be read out of the
+  // message text: `Instance does not have required property "id".` A @cfworker upgrade
+  // that rewords its messages breaks these two lines and nothing else.
+  const quoted = e => /"([^"]+)"/.exec(e.error)?.[1];
+  const listed = e => e.error.match(/\[(.*)\]/)?.[1].split(',') || [];
+
   // Phrasing only — the rules all come from the schema. Validators emit machine
   // strings ("String does not match pattern"), so lean on the schema's own
   // annotations (examples, title) to say something a human can act on.
   function message(e, f, path, rec) {
     if (e.keyword === 'additionalProperties') {
-      const key = /"([^"]+)"/.exec(e.error)?.[1];
+      const key = quoted(e);
       return key ? `"${key}" is not a field here — it may have moved or been renamed`
         : clean(e);
     }
@@ -658,7 +664,7 @@ export function createForm({
       return `must look like: ${f.d.examples.slice(0, 3).join(', ')}`;
     if (e.keyword === 'enum') {
       const bad = getIn(rec, path);
-      const opts = e.error.match(/\[(.*)\]/)?.[1].split(',') || [];
+      const opts = listed(e);
       return opts.length > 8
         ? `"${bad}" is not a valid ${f.name}`
         : `must be one of ${opts.join(', ')}`;

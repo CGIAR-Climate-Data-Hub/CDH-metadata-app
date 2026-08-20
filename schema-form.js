@@ -244,12 +244,20 @@ export function createForm({
   let touched = new Set();
   let showAll = false;
 
-  const el = (tag, cls, html) => {
+  // Third argument is TEXT, never markup — assigned to textContent, so nothing a record
+  // holds can be parsed as HTML. Where text and elements genuinely mix, use html`` (it
+  // escapes every interpolated value) rather than assembling nodes by hand.
+  const el = (tag, cls, text) => {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
-    if (html != null) n.innerHTML = html;
+    if (text != null) n.textContent = text;
     return n;
   };
+  // `option` elements come from the platform: new Option(text, value) escapes nothing
+  // because it never builds a string. A datalist option carries the value only — a
+  // browser renders a differing label beside it, so keep them empty.
+  const options = (values, dflt) => values.map(v => new Option(v, v, v === dflt, v === dflt));
+  const listOptions = values => values.map(v => new Option('', v));
 
   // The record as the schema wants to see it: user data over derived bookkeeping.
   const record = () => ({ ...derive(data), ...data });
@@ -260,7 +268,7 @@ export function createForm({
     const wrap = el('div', 'field');
     wrap.dataset.path = path;
     const fid = 'f' + path.replace(/\W+/g, '-');
-    const lab = el('label', req ? 'req' : '', esc(label(key)));
+    const lab = el('label', req ? 'req' : '', label(key));
     lab.id = `${fid}-l`;
     const w = widget(key, d, path, def, req);
     wrap.append(lab, w);
@@ -282,7 +290,8 @@ export function createForm({
     // A free-text field with examples gets them as a datalist: the same typeahead the
     // enum fields use, so the schema's examples are pickable instead of just readable.
     if (single?.tagName === 'INPUT' && !single.getAttribute('list') && d.examples?.length > 1) {
-      const dl = el('datalist', '', d.examples.map(v => `<option value="${esc(v)}">`).join(''));
+      const dl = el('datalist');
+      dl.append(...listOptions(d.examples));
       dl.id = `${fid}-dl`;
       single.setAttribute('list', dl.id);
       wrap.append(dl);
@@ -290,7 +299,7 @@ export function createForm({
 
     let describedBy = '';
     if (d.description) {
-      const hint = el('div', 'hint', esc(d.description));
+      const hint = el('div', 'hint', d.description);
       hint.id = `${fid}-h`;
       wrap.append(hint);
       describedBy = hint.id;
@@ -345,8 +354,8 @@ export function createForm({
   }
 
   function select(en, path, dflt) {
-    const n = el('select', '', `<option value="">—</option>` +
-      en.map(v => `<option value="${esc(v)}"${v === dflt ? ' selected' : ''}>${esc(v)}</option>`).join(''));
+    const n = el('select');
+    n.append(new Option('—', ''), ...options(en, dflt));
     const have = getIn(data, path);
     if (have != null) { n.value = have; n.classList.add('filled'); }
     else if (dflt) setIn(data, path, dflt);
@@ -385,7 +394,8 @@ export function createForm({
         : 'type, then Enter';
     if (suggest?.length) {
       const id = `dl-${path.replace(/\W+/g, '-')}`;
-      const dl = el('datalist', '', suggest.map(v => `<option value="${esc(v)}">`).join(''));
+      const dl = el('datalist');
+      dl.append(...listOptions(suggest));
       dl.id = id;
       row.setAttribute('list', id);
       box.append(dl);
@@ -398,8 +408,8 @@ export function createForm({
         const obj = v && typeof v === 'object';
         const text = obj ? (v.term ?? v.name ?? JSON.stringify(v)) : v;
         const bad = !obj && en && !en.includes(v);
-        const t = el('span', 'tag' + (bad ? ' bad' : ''),
-          `${esc(text)}${obj ? ' <span class="hint" style="font-size:10px">linked</span>' : ''}<button class="tag-rm" title="Remove">×</button>`);
+        const t = el('span', 'tag' + (bad ? ' bad' : ''));
+        t.append(html`${text}${obj ? raw(' <span class="hint" style="font-size:10px">linked</span>') : ''}<button class="tag-rm" title="Remove">×</button>`);
         if (obj) t.title = JSON.stringify(v, null, 1);
         t.querySelector('button').onclick = () => {
           set(path, (getIn(data, path) || []).filter((_, j) => j !== i));
@@ -430,7 +440,8 @@ export function createForm({
     const box = el('div', 'chips');
     const chosen = new Set(asArray(getIn(data, path)));
     for (const v of enumOf(d)) {
-      const c = el('label', 'chip' + (chosen.has(v) ? ' on' : ''), `<input type="checkbox"${chosen.has(v) ? ' checked' : ''}>${esc(v)}`);
+      const c = el('label', 'chip' + (chosen.has(v) ? ' on' : ''));
+      c.append(html`<input type="checkbox"${raw(chosen.has(v) ? ' checked' : '')}>${v}`);
       c.querySelector('input').addEventListener('change', e => {
         const vals = new Set(getIn(data, path) || []);
         e.target.checked ? vals.add(v) : vals.delete(v);
@@ -509,7 +520,7 @@ export function createForm({
         inp.placeholder = slot.title ?? `[${j}]`;
         if (vals?.[j] != null) inp.value = vals[j];
         inp.addEventListener('input', write);
-        cell.append(inp, el('div', 'hint', esc(slot.title ?? `position ${j}`)));
+        cell.append(inp, el('div', 'hint', slot.title ?? `position ${j}`));
         grid.append(cell);
       });
       wrap.append(grid);
@@ -668,7 +679,7 @@ export function createForm({
         const entry = fields.get(path);
         if (!entry) continue;
         entry.el.classList.add('bad');
-        const err = el('div', 'field-err', esc(msg));
+        const err = el('div', 'field-err', msg);
         err.id = `${entry.fid}-e`;
         err.setAttribute('role', 'alert');
         entry.el.append(err);
@@ -704,13 +715,13 @@ export function createForm({
     mount.replaceChildren(...secs.map((s, i) => {
       const sec = el('div', 'sec' + (i === 0 ? ' open' : ''));
       const nReq = s.keys.filter(k => required.has(k)).length;
-      const hd = el('div', 'sec-hd', `<div class="sec-title">${esc(s.title)}
-        <span class="badge ${nReq ? 'req' : 'opt'}">${nReq ? nReq + ' required' : 'optional'}</span></div>
+      const hd = el('div', 'sec-hd');
+      hd.append(html`<div class="sec-title">${s.title}<span class="badge ${nReq ? 'req' : 'opt'}">${nReq ? `${nReq} required` : 'optional'}</span></div>
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`);
       hd.onclick = () => sec.classList.toggle('open');
       const body = el('div', 'sec-body');
       // An extension branch's own description is section-level help; the schema has it.
-      if (about[s.title]) body.append(el('div', 'hint', esc(about[s.title])));
+      if (about[s.title]) body.append(el('div', 'hint', about[s.title]));
       for (const k of s.keys) body.append(field(k, props[k], `#/${k}`, required.has(k)));
       sec.append(hd, body);
       return sec;

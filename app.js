@@ -1,5 +1,5 @@
 // Wiring: fetch the schema, build the form, YAML preview, validation panel.
-import { createForm, flatten, html, raw, DERIVED } from './schema-form.js';
+import { createForm, flatten, schemaVersion, html, raw, DERIVED } from './schema-form.js';
 import { initChat } from './chat.js';
 import { initSubmit } from './submit.js';
 
@@ -218,7 +218,7 @@ const schema = await res.json();
 
 // The version shown in the header, the AI pill and the YAML dialog is whatever the
 // schema says it is, so a stale label is not possible.
-SCHEMA_VERSION = schema.$id?.match(/\/(v\d+\.\d+\.\d+)\//)?.[1] ?? VERSION;
+SCHEMA_VERSION = schemaVersion(schema) ?? VERSION;
 for (const n of document.querySelectorAll('[data-cdh-version]')) n.textContent = SCHEMA_VERSION;
 if (SCHEMA_VERSION !== VERSION) {
   console.warn(`[CDH] pinned ${VERSION} but the schema declares ${SCHEMA_VERSION}`);

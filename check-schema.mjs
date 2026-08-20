@@ -8,7 +8,7 @@ import fs from 'node:fs';
 const APP = new URL('.', import.meta.url).pathname;
 const SPEC = process.env.CDH_SPEC || new URL('../metadata', import.meta.url).pathname;
 
-const { flatten, extensionRules, unsupportedReason, SECTIONS, HIDDEN, TEXTAREA } =
+const { flatten, extensionRules, schemaVersion, unsupportedReason, SECTIONS, HIDDEN, TEXTAREA } =
   await import(`${APP}/schema-form.js`);
 
 const where = process.env.CDH_SCHEMA || `${SPEC}/spec/schemas/profiles/cdh.schema.bundled.json`;
@@ -26,7 +26,7 @@ console.log(`app     ${Object.keys(props).length} properties, ${required.size} r
 
 // ── 1. Version pin ───────────────────────────────────────────────────────────────
 // Schemas are only published under versioned dirs, so the app pins one on purpose.
-const ver = schema.$id?.match(/\/(v\d+\.\d+\.\d+)\//)?.[1];
+const ver = schemaVersion(schema);
 for (const f of fs.readdirSync(APP).filter(f => /\.(html|js)$/.test(f))) {
   const text = fs.readFileSync(`${APP}/${f}`, 'utf8');
   const pinned = [...new Set([...text.matchAll(/\/(v\d+\.\d+\.\d+)\//g)].map(m => m[1]))];

@@ -23,13 +23,28 @@ export function flatten(schema) {
   return { props, required, origin, about };
 }
 
+// The published $id is the only authority on which release actually loaded:
+//   https://…/cdh-metadata-standard/v0.2.0/schemas/profiles/… → "v0.2.0"
+export const schemaVersion = schema => schema?.$id?.match(/\/(v\d+\.\d+\.\d+)\//)?.[1] ?? null;
+
+// JSON Schema can only say "extensions must contain a string matching this pattern", so
+// the URL the record needs is stored as a regex. Read the literal back out of it — every
+// piece is a fixed substring, so plain string swaps do it, no regex-matching-regex-source:
+//   ^https://…/v[0-9]+\.[0-9]+\.[0-9]+/extensions/cdh/schema\.json$
+//   → https://…/v0.2.0/extensions/cdh/schema.json
+const VERSION_WILDCARD = 'v[0-9]+\\.[0-9]+\\.[0-9]+';
+const literal = (pattern, ver) => {
+  let p = pattern;
+  if (p.startsWith('^')) p = p.slice(1);
+  if (p.endsWith('$')) p = p.slice(0, -1);
+  return p.replaceAll(VERSION_WILDCARD, ver).replaceAll('\\.', '.');
+};
+
 // The `extensions[]` URLs are dictated by the schema's own if/then rules, so derive
 // them from the record instead of hardcoding — a new extension needs no app change.
 export function extensionRules(schema) {
-  const ver = (schema.$id || '').match(/\/(v\d+\.\d+\.\d+)\//)?.[1] || 'v0.0.0';
-  const url = p => p.replace(/^\^|\$$/g, '')
-    .replace(/v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+/, ver)
-    .replace(/\\\./g, '.');
+  const ver = schemaVersion(schema) ?? 'v0.0.0';
+  const url = p => literal(p, ver);
   const always = schema.properties?.extensions?.contains?.pattern;
   return {
     always: always ? [url(always)] : [],
@@ -213,7 +228,7 @@ export const html = (parts, ...values) => {
 // but nobody should type.
 function cdhBookkeeping(schema) {
   const rules = extensionRules(schema);
-  const version = (schema.$id || '').match(/\/(v\d+\.\d+\.\d+)\//)?.[1] || 'v0.0.0';
+  const version = schemaVersion(schema) ?? 'v0.0.0';
   const profile = (schema.$id || '').replace('.bundled', '');
   return data => {
     const today = new Date().toISOString().slice(0, 10);

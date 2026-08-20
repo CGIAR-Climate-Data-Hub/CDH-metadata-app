@@ -8,7 +8,7 @@ import fs from 'node:fs';
 const APP = new URL('.', import.meta.url).pathname;
 const SPEC = process.env.CDH_SPEC || new URL('../metadata', import.meta.url).pathname;
 
-const { flatten, extensionRules, unsupported, SECTIONS, HIDDEN, TEXTAREA, CHIP_MAX } =
+const { flatten, extensionRules, unsupportedReason, SECTIONS, HIDDEN, TEXTAREA } =
   await import(`${APP}/schema-form.js`);
 
 const where = process.env.CDH_SCHEMA || `${SPEC}/spec/schemas/profiles/cdh.schema.bundled.json`;
@@ -48,13 +48,6 @@ if (byBranch.length) console.log(`\nsections titled by the schema's own allOf br
 
 // ── 3. Config that no longer matches anything (dead weight) ───────────────────────
 const known = new Set(Object.keys(props));
-const nested = new Set();
-(function collect(def, path = '') {
-  if (!def || typeof def !== 'object') return;
-  for (const k of Object.keys(def.properties || {})) { nested.add(k); collect(def.properties[k]); }
-  for (const b of def.anyOf || def.oneOf || def.allOf || []) collect(b);
-  if (def.items) collect(def.items);
-})({ properties: props });
 const dead = [
   ...[...grouped.keys()].filter(k => !known.has(k)).map(k => `SECTIONS "${grouped.get(k)}" → ${k}`),
   ...[...HIDDEN].filter(k => !known.has(k) && k !== '$schema').map(k => `HIDDEN → ${k}`),
@@ -63,17 +56,7 @@ const dead = [
 if (dead.length) { say('DEAD  ', `config points at properties the schema no longer has:\n         ${dead.join('\n         ')}`); todo++; }
 
 // ── 4. Shapes the generator can't render ──────────────────────────────────────────
-// Same check the app runs in the browser, so the two cannot disagree.
-const unrenderable = unsupported(props);
-const untitled = [];
-(function walk(def, ptr) {
-  if (!def || typeof def !== 'object') return;
-  // Tuples render positionally; without slot titles the inputs are labelled by index.
-  if (def.prefixItems?.some(sl => !sl.title)) untitled.push([ptr, def.prefixItems.length]);
-  for (const [k, v] of Object.entries(def.properties || {})) walk(v, `${ptr}/${k}`);
-  for (const b of [...(def.anyOf || []), ...(def.oneOf || []), ...(def.allOf || [])]) walk(b, ptr);
-  if (def.items) walk(def.items, `${ptr}/*`);
-})({ properties: props }, '#');
+// Tuples render positionally; without slot titles the inputs are labelled by index.
 if (untitled.length) {
   say('TITLE ', `tuple slots with no title — inputs fall back to "position N":\n         ${untitled.map(([p, n]) => `${p}  (${n} slots)`).join('\n         ')}`);
   notes++;

@@ -177,8 +177,8 @@ function coerce(value, def) {
 // throw while painting.
 const asArray = v => Array.isArray(v) ? v : v == null ? [] : [v];
 // Shapes the dispatch table has no branch for. Falling through to a text input renders
-// something plausible and silently loses whatever the field really holds, so the form
-// says so instead — and app.js warns once for the whole record.
+// something plausible and silently loses whatever the field really holds, so the field
+// says so instead. check-schema.mjs walks the whole schema with this before a version bump.
 export function unsupportedReason(def) {
   if (!def || typeof def !== 'object') return null;
   const branches = def.anyOf || def.oneOf || [];
@@ -187,19 +187,6 @@ export function unsupportedReason(def) {
   if (def.additionalProperties && typeof def.additionalProperties === 'object') return 'open map';
   if (def.$ref) return `unresolved $ref ${def.$ref}`;
   return null;
-}
-
-export function unsupported(props) {
-  const out = [];
-  (function walk(def, ptr) {
-    if (!def || typeof def !== 'object') return;
-    const why = unsupportedReason(def);
-    if (why) out.push([ptr, why]);
-    for (const [k, v] of Object.entries(def.properties || {})) walk(v, `${ptr}/${k}`);
-    for (const b of [...(def.anyOf || []), ...(def.oneOf || []), ...(def.allOf || [])]) walk(b, ptr);
-    if (def.items) walk(def.items, `${ptr}/*`);
-  })({ properties: props }, '#');
-  return out;
 }
 
 const label = k => k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());

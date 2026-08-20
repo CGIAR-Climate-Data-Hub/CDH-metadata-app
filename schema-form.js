@@ -575,17 +575,19 @@ export function createForm({
   }
 
   // ── Validation ────────────────────────────────────────────────────────────────
-  // Keep only leaf keywords: the structural ones (allOf/properties/items/…) just
-  // restate that a child failed, and unevaluatedProperties cascades once allOf fails.
-  const LEAF = new Set(['enum', 'pattern', 'type', 'required', 'minLength', 'maxLength',
-    'minItems', 'maxItems', 'format', 'const', 'contains', 'uniqueItems', 'minimum',
-    'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'not', 'dependentRequired',
-    'dependentSchemas', 'propertyNames', 'multipleOf', 'maxContains', 'minContains',
-    'minProperties', 'maxProperties',
-    // Names the offending key, so a record from before a rename says what is misplaced
-    // rather than just failing. unevaluatedProperties stays out: it cascades over every
-    // property once an allOf branch fails.
-    'additionalProperties']);
+  // Drop the structural keywords: they only restate that a child failed, and the child
+  // reports the constraint that actually broke. Everything else is a leaf assertion and
+  // gets shown — a denylist, so a keyword the schema starts using shows up (noisily)
+  // instead of being silently swallowed. additionalProperties is deliberately NOT here:
+  // it names the offending key, so a record from before a rename says what is misplaced.
+  const STRUCTURAL = new Set(['properties', 'items', 'prefixItems', 'allOf', 'anyOf',
+    'oneOf', 'if', '$ref', 'patternProperties', 'additionalItems', 'unevaluatedItems',
+    // cascades over every property once an allOf branch fails
+    'unevaluatedProperties',
+    // The child half of an `additionalProperties: false` rejection: the parent names the
+    // offending key, this fires at the key itself — including keys that are perfectly
+    // valid and failed for another reason. The parent's message is the honest one.
+    'false']);
 
   // An error inside an array item (#/spatial/geography/0) belongs to the field that
   // renders the array, so walk up to the nearest registered pointer.
@@ -600,7 +602,7 @@ export function createForm({
     const { valid, errors } = validator.validate(rec);
     const perField = new Map(), general = [];
     for (const e of errors) {
-      if (!LEAF.has(e.keyword)) continue;
+      if (STRUCTURAL.has(e.keyword)) continue;
       const alt = /\/(anyOf|oneOf)\//.test(e.keywordLocation);
       let path = e.instanceLocation;
       if (e.keyword === 'required') {

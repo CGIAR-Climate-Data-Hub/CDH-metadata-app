@@ -21,7 +21,7 @@ const DRAFT_KEY = 'cdh_draft';
 let SCHEMA_VERSION = VERSION;
 
 const $ = id => document.getElementById(id);
-export const setStatus = msg => { $('status').textContent = msg; };
+const setStatus = msg => { $('status').textContent = msg; };
 // setData/validate trigger onChange a moment later, which would overwrite whatever the
 // caller just reported. Anything set here survives the next onChange instead.
 let pendingStatus = '';
@@ -32,7 +32,7 @@ const ICON = {
   err: `<svg class="val-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
 };
 
-export let form = null;
+let form = null;
 
 // ── YAML ────────────────────────────────────────────────────────────────────────
 // Keys come out in the form's own reading order, so the same record always
@@ -43,7 +43,7 @@ function ordered(rec) {
   return Object.fromEntries(Object.entries(rec).sort(([a], [b]) => rank(a) - rank(b)));
 }
 
-export function toYAML() {
+function toYAML() {
   const rec = ordered(form.record());
   const body = jsyaml.dump(rec, { indent: 2, lineWidth: 100, noRefs: true, skipInvalid: true });
   return `# yaml-language-server: $schema=../../spec/schemas/profiles/cdh.schema.json\n${body}`;
@@ -52,7 +52,7 @@ export function toYAML() {
 // ── The checks the schema cannot express ────────────────────────────────────────
 // Absent until a release publishes them, so this degrades to "not run" rather than
 // pretending a record is clean. checksNote says which state we are in.
-export let checksNote = '';
+let checksNote = '';
 async function loadCrossFieldChecks() {
   try {
     const [mod, spdx] = await Promise.all([
@@ -101,7 +101,7 @@ function readDraft() {
   } catch { return null; }
 }
 
-export function loadYAML(text) {
+function loadYAML(text) {
   const doc = jsyaml.load(text);
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new Error('not a YAML mapping');
   const { $schema, cdh_schema_version, extensions, updated, ...rec } = doc;
@@ -187,7 +187,7 @@ const actions = {
 
 };
 
-export const act = (name, fn) => { actions[name] = fn; };
+const act = (name, fn) => { actions[name] = fn; };
 
 // One delegated listener instead of 22 inline handlers.
 document.addEventListener('click', e => {

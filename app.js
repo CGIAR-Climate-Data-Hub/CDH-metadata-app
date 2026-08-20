@@ -5,14 +5,13 @@ import { initSubmit } from './submit.js';
 
 // Bumping a release is this one line. Everything else — the checks URL, the version the
 // UI shows, the draft key — comes from here or from the schema that actually loaded.
-const VERSION = 'v0.2.0';
+const VERSION = 'v0.3.0';
 const BASE = `https://cgiar-climate-data-hub.github.io/cdh-metadata-standard/${VERSION}`;
 const SCHEMA_URL = `${BASE}/schemas/profiles/cdh.schema.bundled.json`;
-// The standard's own cross-field rules. spec/checks/cross-field.js is written and the
-// publish workflow mirrors it, so this becomes `${BASE}/checks/cross-field.js` as soon as
-// a release ships — one line, then delete vendor/cross-field.js. Until then it is a
-// verbatim local copy, and check-schema.mjs fails if the two diverge.
-const CHECKS_URL = new URL('./vendor/cross-field.js', import.meta.url);
+// The standard's own cross-field rules, published with the schema since v0.3.0, so the
+// app reads them from the release it pinned rather than keeping a copy. If the import
+// fails the panel says the rules did not load and the pull request still runs them.
+const CHECKS_URL = `${BASE}/checks/cross-field.js`;
 const SPDX_URL = 'https://esm.sh/spdx-expression-validate@2';
 // A long form and no persistence meant a refresh threw the work away.
 const DRAFT_KEY = 'cdh_draft';
@@ -111,8 +110,8 @@ function loadYAML(text) {
 }
 
 // ── Modals ──────────────────────────────────────────────────────────────────────
-const open = id => $(id).classList.add('open');
-const close = id => $(id).classList.remove('open');
+const open = id => $(id).showModal();
+const close = id => $(id).close();
 
 const actions = {
   openModal() {
@@ -191,8 +190,8 @@ const act = (name, fn) => { actions[name] = fn; };
 document.addEventListener('click', e => {
   const hit = e.target.closest('[data-act]');
   if (hit) return actions[hit.dataset.act]?.();
-  const overlay = e.target.closest('[data-close]');
-  if (overlay && e.target === overlay) actions[overlay.dataset.close]?.();
+  // A click that lands on the dialog itself landed on its backdrop; Escape is the UA's.
+  if (e.target.matches('dialog')) e.target.close();
 });
 $('load-yaml').addEventListener('change', async e => {
   const file = e.target.files?.[0];
@@ -230,7 +229,7 @@ form = createForm({
   extraChecks: await loadCrossFieldChecks(),
   onChange() {
     saveDraft();
-    if ($('modal').classList.contains('open')) $('yaml-out').textContent = toYAML();
+    if ($('modal').open) $('yaml-out').textContent = toYAML();
   },
 });
 

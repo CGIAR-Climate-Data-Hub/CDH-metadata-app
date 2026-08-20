@@ -24,14 +24,14 @@ export function flatten(schema) {
 }
 
 // The published $id is the only authority on which release actually loaded:
-//   https://…/cdh-metadata-standard/v0.2.0/schemas/profiles/… → "v0.2.0"
+//   https://…/cdh-metadata-standard/v0.3.0/schemas/profiles/… → "v0.3.0"
 export const schemaVersion = schema => schema?.$id?.match(/\/(v\d+\.\d+\.\d+)\//)?.[1] ?? null;
 
 // JSON Schema can only say "extensions must contain a string matching this pattern", so
 // the URL the record needs is stored as a regex. Read the literal back out of it — every
 // piece is a fixed substring, so plain string swaps do it, no regex-matching-regex-source:
 //   ^https://…/v[0-9]+\.[0-9]+\.[0-9]+/extensions/cdh/schema\.json$
-//   → https://…/v0.2.0/extensions/cdh/schema.json
+//   → https://…/v0.3.0/extensions/cdh/schema.json
 const VERSION_WILDCARD = 'v[0-9]+\\.[0-9]+\\.[0-9]+';
 const literal = (pattern, ver) => {
   let p = pattern;
@@ -264,6 +264,12 @@ export function createForm({
   // escapes every interpolated value) rather than assembling nodes by hand.
   const el = (tag, cls, text) => {
     const n = document.createElement(tag);
+    // Field ids are built from the property path, so a browser reads
+    // "f-contact-0-organization" as the person's own employer and offers its saved
+    // profile in place of the datalist we built from the schema's examples. Nothing in
+    // this form describes whoever is filling it in, so no generated control wants
+    // autofill. Elements that have no autocomplete of their own are skipped.
+    if ('autocomplete' in n) n.autocomplete = 'off';
     if (cls) n.className = cls;
     if (text != null) n.textContent = text;
     return n;
@@ -272,7 +278,7 @@ export function createForm({
   // because it never builds a string. A datalist option carries the value only — a
   // browser renders a differing label beside it, so keep them empty.
   const options = (values, dflt) => values.map(v => new Option(v, v, v === dflt, v === dflt));
-  const listOptions = values => values.map(v => new Option('', v));
+  const listOptions = values => values.map(v => new Option(v));
 
   // The record as the schema wants to see it: user data over derived bookkeeping.
   const record = () => ({ ...derive(data), ...data });
@@ -736,12 +742,12 @@ export function createForm({
     }
 
     mount.replaceChildren(...secs.map((s, i) => {
-      const sec = el('div', 'sec' + (i === 0 ? ' open' : ''));
+      const sec = el('details', 'sec');
+      sec.open = i === 0;
       const nReq = s.keys.filter(k => required.has(k)).length;
-      const hd = el('div', 'sec-hd');
+      const hd = el('summary', 'sec-hd');
       hd.append(html`<div class="sec-title">${s.title}<span class="badge ${nReq ? 'req' : 'opt'}">${nReq ? `${nReq} required` : 'optional'}</span></div>
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`);
-      hd.onclick = () => sec.classList.toggle('open');
       const body = el('div', 'sec-body');
       // An extension branch's own description is section-level help; the schema has it.
       if (about[s.title]) body.append(el('div', 'hint', about[s.title]));

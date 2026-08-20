@@ -29,8 +29,9 @@ console.log(`app     ${Object.keys(props).length} properties, ${required.size} r
 const ver = schemaVersion(schema);
 for (const f of fs.readdirSync(APP).filter(f => /\.(html|js)$/.test(f))) {
   const text = fs.readFileSync(`${APP}/${f}`, 'utf8');
-  const pinned = [...new Set([...text.matchAll(/\/(v\d+\.\d+\.\d+)\//g)].map(m => m[1]))];
-  const stale = pinned.filter(v => v !== ver);
+  const pinned = [...new Set([...text.matchAll(/['"\/](v\d+\.\d+\.\d+)['"\/]/g)].map(m => m[1]))];
+  // v0.0.0 is the "no version in the $id" sentinel, not a pin.
+  const stale = pinned.filter(v => v !== ver && v !== 'v0.0.0');
   if (stale.length) { say('BUMP  ', `${f} still points at ${stale.join(', ')} — schema is ${ver}`); todo++; }
 }
 
@@ -79,23 +80,6 @@ if (untitled.length) {
 }
 if (unrenderable.length) {
   say('WIDGET', `no generic renderer — add a branch to widget() in schema-form.js:\n         ${unrenderable.map(([p, w]) => `${p}  (${w})`).join('\n         ')}`);
-  todo++;
-}
-
-// ── 4b. The vendored cross-field rules vs the spec repo's copy ────────────────────
-// vendor/cross-field.js is a verbatim copy of spec/checks/cross-field.js until a release
-// publishes it, so this is a whole-file comparison rather than a parse.
-const strip = t => t.split('\n').filter(l => l.trim() && !l.trim().startsWith('//')).join('\n');
-const vendored = fs.readFileSync(`${APP}/vendor/cross-field.js`, 'utf8');
-const source = (() => {
-  try { return fs.readFileSync(`${SPEC}/spec/checks/cross-field.js`, 'utf8') } catch { return null }
-})();
-if (!source) {
-  console.log('\nvendored cross-field rules: spec repo not reachable, cannot compare');
-} else if (strip(vendored) === strip(source)) {
-  console.log('\nvendored cross-field rules: identical to spec/checks/cross-field.js');
-} else {
-  say('COPY  ', 'vendor/cross-field.js has drifted from spec/checks/cross-field.js — re-copy it');
   todo++;
 }
 

@@ -95,135 +95,130 @@
 
 <!-- ── Status bar ─────────────────────────────────────────────────────────────── -->
 <div class="status-bar">
-  <span id="status">Ready — fill the form or ask the AI for help.</span>
+  <!-- <output> carries role=status, so setStatus() is announced, not just shown. -->
+  <output id="status">Ready — fill the form or ask the AI for help.</output>
   <button class="btn btn-outline" style="padding:4px 11px;font-size:11px" data-act="openModal">Preview YAML</button>
 </div>
 
 <!-- ── YAML Modal ─────────────────────────────────────────────────────────────── -->
-<div class="overlay" id="modal" data-close="closeModal">
-  <div class="modal">
-    <div class="modal-hd">
-      <h3>Generated YAML — CDH Metadata <span data-cdh-version></span></h3>
-      <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" data-act="closeModal">✕ Close</button>
-    </div>
-    <div id="val-summary-bar" style="display:none"></div>
-    <div class="modal-body">
-      <div id="val-results" style="display:none"></div>
-      <pre class="yaml-pre" id="yaml-out"></pre>
-    </div>
-    <div class="modal-ft">
-      <button class="btn btn-outline" data-act="copyYAML">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        Copy
-      </button>
-      <button class="btn btn-outline" data-act="dlYAML">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download YAML
-      </button>
-      <button class="btn btn-outline" id="validate-btn" data-act="runValidation">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Validate
-      </button>
-      <button class="btn btn-success" id="submit-to-cdh-btn" data-act="validateThenSubmit">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        Submit to CDH Catalog
-      </button>
-    </div>
+<dialog class="modal" id="modal">
+  <div class="modal-hd">
+    <h3>Generated YAML — CDH Metadata <span data-cdh-version></span></h3>
+    <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" data-act="closeModal">✕ Close</button>
   </div>
-</div>
+  <div id="val-summary-bar" style="display:none"></div>
+  <div class="modal-body">
+    <div id="val-results" style="display:none"></div>
+    <pre class="yaml-pre" id="yaml-out"></pre>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-outline" data-act="copyYAML">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copy
+    </button>
+    <button class="btn btn-outline" data-act="dlYAML">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download YAML
+    </button>
+    <button class="btn btn-outline" id="validate-btn" data-act="runValidation">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Validate
+    </button>
+    <button class="btn btn-success" id="submit-to-cdh-btn" data-act="validateThenSubmit">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Submit to CDH Catalog
+    </button>
+  </div>
+</dialog>
 
 <!-- ── Submit Modal ──────────────────────────────────────────────────────────────── -->
-<div class="overlay" id="submit-modal" data-close="closeSubmitModal">
-  <div class="modal" style="max-width:520px">
-    <div class="modal-hd">
-      <div>
-        <h3>Submit to CDH Catalog</h3>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Triggers a GitHub Action in <strong>anaguilarar/cdh-catalog</strong> that creates a PR</div>
-      </div>
-      <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" data-act="closeSubmitModal">✕</button>
+<dialog class="modal" id="submit-modal" style="max-width:520px">
+  <div class="modal-hd">
+    <div>
+      <h3>Submit to CDH Catalog</h3>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Triggers a GitHub Action in <strong>anaguilarar/cdh-catalog</strong> that creates a PR</div>
     </div>
-    <div class="modal-body">
-      <div class="step-list">
-        <div class="step" id="step-dispatch">
-          <div class="step-num">1</div>
-          <div class="step-text">
-            <strong>Trigger submission workflow</strong>
-            <small id="step-dispatch-detail">Calls workflow_dispatch on anaguilarar/cdh-catalog</small>
-          </div>
-        </div>
-        <div class="step" id="step-run">
-          <div class="step-num">2</div>
-          <div class="step-text">
-            <strong>GitHub Actions creates PR</strong>
-            <small>Writes records/<span id="step-record-id">{id}</span>/{id}.yaml · formats · opens PR · validates</small>
-          </div>
-        </div>
-      </div>
-      <div style="padding:0 18px 14px">
-        <div class="field">
-          <label class="req" for="gh-token">Personal Access Token</label>
-          <input id="gh-token" type="password" placeholder="github_pat_… or ghp_…" autocomplete="off" />
-          <div class="hint">
-            Prefer a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" style="color:var(--blue)">fine-grained token</a>
-            scoped to <strong>anaguilarar/cdh-catalog</strong> only, with <strong>Actions: read and write</strong>
-            and a short expiry — that is all this submission needs.
-            A <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=CDH+Metadata+Submitter" target="_blank" style="color:var(--blue)">classic token</a>
-            also works but carries <code>repo</code>, which grants write access to every repository you can reach.
-          </div>
-          <label class="chk"><input type="checkbox" id="gh-remember" /> Remember this token in this browser</label>
-          <div class="hint" id="gh-remember-note"></div>
-          <div class="hint" id="gh-forget-row" style="display:none">
-            <button class="btn btn-outline" style="padding:3px 9px;font-size:11px" data-act="forgetToken">Forget stored token</button>
-            Removes it from this browser. To revoke it everywhere, delete it in
-            <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--blue)">GitHub settings</a>.
-          </div>
-        </div>
-      </div>
-      <div id="submit-result" style="display:none;padding:0 18px 14px"></div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn btn-outline" data-act="closeSubmitModal">Cancel</button>
-      <button class="btn btn-success" id="do-submit-btn" data-act="doSubmit">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        Submit
-      </button>
-    </div>
+    <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" data-act="closeSubmitModal">✕</button>
   </div>
-</div>
+  <div class="modal-body">
+    <div class="step-list">
+      <div class="step" id="step-dispatch">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <strong>Trigger submission workflow</strong>
+          <small id="step-dispatch-detail">Calls workflow_dispatch on anaguilarar/cdh-catalog</small>
+        </div>
+      </div>
+      <div class="step" id="step-run">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <strong>GitHub Actions creates PR</strong>
+          <small>Writes records/<span id="step-record-id">{id}</span>/{id}.yaml · formats · opens PR · validates</small>
+        </div>
+      </div>
+    </div>
+    <div style="padding:0 18px 14px">
+      <div class="field">
+        <label class="req" for="gh-token">Personal Access Token</label>
+        <input id="gh-token" type="password" placeholder="github_pat_… or ghp_…" autocomplete="off" />
+        <div class="hint">
+          Prefer a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" style="color:var(--blue)">fine-grained token</a>
+          scoped to <strong>anaguilarar/cdh-catalog</strong> only, with <strong>Actions: read and write</strong>
+          and a short expiry — that is all this submission needs.
+          A <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=CDH+Metadata+Submitter" target="_blank" style="color:var(--blue)">classic token</a>
+          also works but carries <code>repo</code>, which grants write access to every repository you can reach.
+        </div>
+        <label class="chk"><input type="checkbox" id="gh-remember" /> Remember this token in this browser</label>
+        <div class="hint" id="gh-remember-note"></div>
+        <div class="hint" id="gh-forget-row" style="display:none">
+          <button class="btn btn-outline" style="padding:3px 9px;font-size:11px" data-act="forgetToken">Forget stored token</button>
+          Removes it from this browser. To revoke it everywhere, delete it in
+          <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--blue)">GitHub settings</a>.
+        </div>
+      </div>
+    </div>
+    <div id="submit-result" style="display:none;padding:0 18px 14px"></div>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-outline" data-act="closeSubmitModal">Cancel</button>
+    <button class="btn btn-success" id="do-submit-btn" data-act="doSubmit">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Submit
+    </button>
+  </div>
+</dialog>
 
 <!-- ── Settings Modal ───────────────────────────────────────────────────────────── -->
-<div class="overlay" id="settings-modal" data-close="closeSettings">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-hd">
-      <h3>API Settings</h3>
-      <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" data-act="closeSettings">✕</button>
+<dialog class="modal" id="settings-modal" style="max-width:480px">
+  <div class="modal-hd">
+    <h3>API Settings</h3>
+    <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" data-act="closeSettings">✕</button>
+  </div>
+  <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+    <div class="field">
+      <label class="req" for="s-key">OpenRouter API Key</label>
+      <input id="s-key" type="password" placeholder="sk-or-v1-…" autocomplete="off" />
+      <div class="hint">Get a free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--blue)">openrouter.ai/keys</a> — stored only in your browser (localStorage).</div>
     </div>
-    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
-      <div class="field">
-        <label class="req" for="s-key">OpenRouter API Key</label>
-        <input id="s-key" type="password" placeholder="sk-or-v1-…" autocomplete="off" />
-        <div class="hint">Get a free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--blue)">openrouter.ai/keys</a> — stored only in your browser (localStorage).</div>
-      </div>
-      <div class="field">
-        <label for="s-model">Model</label>
-        <select id="s-model">
-          <option value="nvidia/nemotron-3-ultra-550b-a55b:free">Nvidia Nemotron 3 Ultra 550B (free) ★</option>
-          <option value="cohere/north-mini-code:free">Cohere North Mini Code (free)</option>
-          <option value="inclusionai/ling-3.0-flash:free">Ling 3.0 Flash (free, fast)</option>
-          <option value="poolside/laguna-s-2.1:free">Poolside Laguna S 2.1 (free)</option>
-          <option value="poolside/laguna-xs-2.1:free">Poolside Laguna XS 2.1 (free, small)</option>
-          <option value="_custom">Custom model ID…</option>
-        </select>
-        <div class="hint">Live free models as of July 2026. Check <a href="https://openrouter.ai/models?q=free" target="_blank" style="color:var(--blue)">openrouter.ai/models</a> for the latest.</div>
-        <input id="s-model-custom" placeholder="provider/model-name:free" style="display:none;margin-top:6px" />
-      </div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn btn-outline" data-act="closeSettings">Cancel</button>
-      <button class="btn btn-success" data-act="saveSettings">Save</button>
+    <div class="field">
+      <label for="s-model">Model</label>
+      <select id="s-model">
+        <option value="nvidia/nemotron-3-ultra-550b-a55b:free">Nvidia Nemotron 3 Ultra 550B (free) ★</option>
+        <option value="cohere/north-mini-code:free">Cohere North Mini Code (free)</option>
+        <option value="inclusionai/ling-3.0-flash:free">Ling 3.0 Flash (free, fast)</option>
+        <option value="poolside/laguna-s-2.1:free">Poolside Laguna S 2.1 (free)</option>
+        <option value="poolside/laguna-xs-2.1:free">Poolside Laguna XS 2.1 (free, small)</option>
+        <option value="_custom">Custom model ID…</option>
+      </select>
+      <div class="hint">Live free models as of July 2026. Check <a href="https://openrouter.ai/models?q=free" target="_blank" style="color:var(--blue)">openrouter.ai/models</a> for the latest.</div>
+      <input id="s-model-custom" placeholder="provider/model-name:free" style="display:none;margin-top:6px" />
     </div>
   </div>
-</div>
+  <div class="modal-ft">
+    <button class="btn btn-outline" data-act="closeSettings">Cancel</button>
+    <button class="btn btn-success" data-act="saveSettings">Save</button>
+  </div>
+</dialog>
 
 <!-- ── Scripts ────────────────────────────────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>

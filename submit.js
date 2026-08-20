@@ -49,7 +49,7 @@ export function initSubmit({ form, setStatus, act }) {
     $('submit-result').style.display = 'none';
     $('do-submit-btn').disabled = false;
     ['step-dispatch', 'step-run'].forEach(s => $(s).classList.remove('active', 'done', 'err'));
-    $('submit-modal').classList.add('open');
+    $('submit-modal').showModal();
   });
 
   act('doSubmit', async () => {

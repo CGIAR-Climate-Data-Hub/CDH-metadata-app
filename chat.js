@@ -92,10 +92,10 @@ export function initChat({ form, schema, setStatus, act }) {
     $('s-model').value = known ? m : '_custom';
     $('s-model-custom').value = known ? '' : m;
     $('s-model-custom').style.display = known ? 'none' : 'block';
-    $('settings-modal').classList.add('open');
+    if (!$('settings-modal').open) $('settings-modal').showModal();
   };
   act('openSettings', openSettings);
-  act('closeSettings', () => $('settings-modal').classList.remove('open'));
+  act('closeSettings', () => $('settings-modal').close());
   act('saveSettings', () => {
     const key = $('s-key').value.trim();
     let model = $('s-model').value;
@@ -103,7 +103,7 @@ export function initChat({ form, schema, setStatus, act }) {
     if (key) localStorage.setItem('or_api_key', key);
     if (model) localStorage.setItem('or_model', model);
     $('model-label').textContent = `OpenRouter · ${getModel()}`;
-    $('settings-modal').classList.remove('open');
+    $('settings-modal').close();
     setStatus('Settings saved.');
   });
   $('s-model').addEventListener('change', e => {

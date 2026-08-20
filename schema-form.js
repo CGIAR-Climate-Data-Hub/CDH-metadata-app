@@ -646,6 +646,9 @@ export function createForm({
   // gets shown — a denylist, so a keyword the schema starts using shows up (noisily)
   // instead of being silently swallowed. additionalProperties is deliberately NOT here:
   // it names the offending key, so a record from before a rename says what is misplaced.
+  // `contains` alone means minContains defaulted to 1; the other two are explicit.
+  const CONTAINS = new Set(['contains', 'minContains', 'maxContains']);
+
   const STRUCTURAL = new Set(['properties', 'items', 'prefixItems', 'allOf', 'anyOf',
     'oneOf', 'if', '$ref', 'patternProperties', 'additionalItems', 'unevaluatedItems',
     // cascades over every property once an allOf branch fails
@@ -740,13 +743,19 @@ export function createForm({
     }
     if ((e.keyword === 'pattern' || e.keyword === 'format') && f.d.examples?.length)
       return `must look like: ${f.d.examples.slice(0, 3).join(', ')}`;
-    // "Array does not contain item matching schema" names neither the field that has to
-    // match nor the value it wants, and both are sitting in the schema.
-    if (e.keyword === 'contains') {
+    // The contains family reports "matching schema" without ever saying which schema, and
+    // the shape is sitting right there. Which of the three keywords failed says whether
+    // the bound is a floor or a cap — dimensions caps z axes at one, it does not want one.
+    if (CONTAINS.has(e.keyword)) {
       const need = shapeOf(f.d.contains);
-      // "entry" rather than the field's own name: these are plural (dimensions,
-      // processing) and the label above already says which list this is.
-      if (need) return `at least one entry must have ${need}`;
+      if (need) {
+        const cap = e.keyword === 'maxContains';
+        const n = cap ? f.d.maxContains : f.d.minContains ?? 1;
+        // "entry" rather than the field's own name: these are plural (dimensions,
+        // processing) and the label above already says which list this is.
+        const entries = n === 1 ? 'one entry' : `${n} entries`;
+        return cap ? `at most ${entries} may have ${need}` : `at least ${entries} must have ${need}`;
+      }
     }
     if (e.keyword === 'enum') {
       const bad = getIn(rec, path);

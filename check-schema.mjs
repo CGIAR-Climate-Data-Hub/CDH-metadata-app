@@ -42,9 +42,25 @@ if (ungrouped.length) {
   say('NEW   ', `renders under "More fields" — add to a SECTIONS entry to place it:\n         ${ungrouped.join(', ')}`);
   notes++;
 }
-const byBranch = Object.keys(props).filter(k => !HIDDEN.has(k) && !grouped.has(k) && origin[k]);
-if (byBranch.length) console.log(`\nsections titled by the schema's own allOf branches:` +
-  [...new Set(byBranch.map(k => origin[k]))].map(t => `\n  ${t}  →  ${byBranch.filter(k => origin[k] === t).join(', ')}`).join(''));
+// visit(subschema, pointer) for the merged root and everything it reaches. Every
+// structural question below is one pass of this.
+function walk(def, visit, ptr = '#') {
+  if (!def || typeof def !== 'object') return;
+  visit(def, ptr);
+  for (const [k, v] of Object.entries(def.properties || {})) walk(v, visit, `${ptr}/${k}`);
+  for (const b of [...(def.anyOf || []), ...(def.oneOf || []), ...(def.allOf || [])]) walk(b, visit, ptr);
+  if (def.items) walk(def.items, visit, `${ptr}/*`);
+}
+
+const nested = new Set();          // every property name at any depth
+const untitled = [];               // tuple slots the form can only label by index
+const unrenderable = [];           // shapes widget() has no branch for
+walk({ properties: props }, (def, ptr) => {
+  for (const k of Object.keys(def.properties || {})) nested.add(k);
+  if (def.prefixItems?.some(sl => !sl.title)) untitled.push([ptr, def.prefixItems.length]);
+  const why = unsupportedReason(def);
+  if (why) unrenderable.push([ptr, why]);
+});
 
 // ── 3. Config that no longer matches anything (dead weight) ───────────────────────
 const known = new Set(Object.keys(props));
@@ -83,25 +99,8 @@ if (!source) {
   todo++;
 }
 
-// ── 5. Enums that crossed the chips/datalist threshold ────────────────────────────
-const enums = [];
-(function walk(def, ptr, name) {
-  if (!def || typeof def !== 'object') return;
-  const en = def.enum || def.items?.enum;
-  if (en) enums.push([ptr, name, en.length]);
-  for (const [k, v] of Object.entries(def.properties || {})) walk(v, `${ptr}/${k}`, k);
-  for (const b of [...(def.anyOf || []), ...(def.oneOf || []), ...(def.allOf || [])]) walk(b, ptr, name);
-  if (def.items && !def.items.enum) walk(def.items, `${ptr}/*`, name);   // the array already reported it
-})({ properties: props }, '#', '');
-console.log(`\ncontrolled vocabularies (inlined in the bundle — no app change needed):`);
-for (const [ptr, , n] of enums.sort((a, b) => b[2] - a[2]))
-  console.log(`  ${String(n).padStart(4)}  ${ptr}  → ${n > CHIP_MAX ? 'datalist' : 'chips'}`);
-
-// ── 6. Extension wiring ───────────────────────────────────────────────────────────
+// ── 5. Extension wiring ───────────────────────────────────────────────────────────
 const rules = extensionRules(schema);
-console.log(`\nextensions[] derived from the schema's if/then rules:`);
-console.log(`  always      ${rules.always.join(', ') || '(none)'}`);
-for (const r of rules.conditional) console.log(`  when ${r.keys.join('/')}  →  ${r.url.split('/extensions/')[1]}`);
 const unsectioned = rules.conditional.flatMap(r => r.keys).filter(k => !grouped.has(k) && !origin[k]);
 if (unsectioned.length) { say('\nNEW   ', `extension triggers with no section: ${unsectioned.join(', ')}`); notes++; }
 

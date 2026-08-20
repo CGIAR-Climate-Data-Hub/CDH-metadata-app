@@ -21,11 +21,9 @@ const DRAFT_KEY = 'cdh_draft';
 let SCHEMA_VERSION = VERSION;
 
 const $ = id => document.getElementById(id);
+// The status bar is where actions report. Nothing writes it on every keystroke, so
+// whatever last spoke stays put — the field errors and the Validate button cover live state.
 const setStatus = msg => { $('status').textContent = msg; };
-// setData/validate trigger onChange a moment later, which would overwrite whatever the
-// caller just reported. Anything set here survives the next onChange instead.
-let pendingStatus = '';
-const reportOnce = msg => { pendingStatus = msg; };
 
 const ICON = {
   ok: `<svg class="val-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
@@ -205,10 +203,9 @@ $('load-yaml').addEventListener('change', async e => {
     const { fields, unknown } = loadYAML(await file.text());
     const { valid, perField, record } = form.validate();
     const problems = perField.size + record.length;
-    reportOnce(`Loaded ${file.name} — ${fields} fields`
+    setStatus(`Loaded ${file.name} — ${fields} fields`
       + (unknown.length ? `, ${unknown.length} not in this schema (${unknown.join(', ')})` : '')
       + (valid ? '. Valid against the CDH profile.' : `. ${problems} problem(s) to fix.`));
-    setStatus(pendingStatus);
   } catch (err) {
     setStatus(`Could not read ${file.name}: ${err.message}`);
   }
@@ -231,13 +228,9 @@ form = createForm({
   schema,
   mount: $('form-panel'),
   extraChecks: await loadCrossFieldChecks(),
-  onChange(_rec, p) {
+  onChange() {
     saveDraft();
     if ($('modal').classList.contains('open')) $('yaml-out').textContent = toYAML();
-    setStatus(pendingStatus || (p.valid
-      ? 'Record is valid against the CDH profile.'
-      : 'Ready — fill the form or ask the AI for help.'));
-    pendingStatus = '';
   },
 });
 
@@ -245,8 +238,8 @@ form = createForm({
 pristine = JSON.stringify(form.data);
 const draft = readDraft();
 if (draft) {
-  reportOnce(`Restored your unsaved draft (${Object.keys(draft).length} fields). Clear discards it.`);
   form.setData(draft);
+  setStatus(`Restored your unsaved draft (${Object.keys(draft).length} fields). Clear discards it.`);
 }
 keepDrafts = true;
 

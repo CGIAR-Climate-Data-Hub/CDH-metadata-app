@@ -15,10 +15,6 @@ It has to be served, not opened as a file — the app is ES modules and browsers
 module imports over `file://`, so double-clicking `index.html` gives you a blank page.
 GitHub Pages serves `main` as-is.
 
-(The old `server.py` and `proxy.py` are gone: both proxied the OpenCode Zen API, which
-the chat stopped using when it moved to OpenRouter and started calling it from the
-browser. Their remaining half was static file serving, which the line above does.)
-
 ```
 index.html        shell only — header, panels, modals (no logic, no inline handlers)
 app.css           all styles

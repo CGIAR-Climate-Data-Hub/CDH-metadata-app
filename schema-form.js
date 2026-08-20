@@ -223,8 +223,8 @@ export const html = (parts, ...values) => {
 };
 
 // Everything CDH-specific about the *output* lives here: keys the profile requires
-// but nobody should type. On a schema without that bookkeeping, pass `() => () => ({})`.
-export function cdhBookkeeping(schema) {
+// but nobody should type.
+function cdhBookkeeping(schema) {
   const rules = extensionRules(schema);
   const version = (schema.$id || '').match(/\/(v\d+\.\d+\.\d+)\//)?.[1] || 'v0.0.0';
   const profile = (schema.$id || '').replace('.bundled', '');
@@ -242,19 +242,15 @@ export function cdhBookkeeping(schema) {
 }
 
 // ── Form ────────────────────────────────────────────────────────────────────────
-// Nothing below this line knows the word "CDH". To drive a different 2020-12 schema,
-// pass your own `sections` and `bookkeeping`.
 export function createForm({
   schema, mount, onChange = () => { },
-  sections: sectionCfg = SECTIONS,
-  bookkeeping = cdhBookkeeping,
   // Rules no schema keyword can state (value cross-references, the SPDX grammar).
   // Sync, record in, ["/pointer: message"] out — the shape the spec repo already uses.
   extraChecks = null,
 }) {
   const { props, required, origin, about } = flatten(schema);
   const validator = new Validator(schema, '2020-12', false);   // shortCircuit off = every field reports
-  const derive = bookkeeping(schema);
+  const derive = cdhBookkeeping(schema);
 
   let data = {};
   let fields = new Map();          // '#/pointer' -> { el, d }
@@ -705,7 +701,7 @@ export function createForm({
   function build() {
     fields = new Map();
     const placed = new Set();
-    const secs = sectionCfg
+    const secs = SECTIONS
       .map(s => ({ ...s, keys: s.keys.filter(k => props[k] && !HIDDEN.has(k)) }))
       .filter(s => s.keys.length);
     secs.forEach(s => s.keys.forEach(k => placed.add(k)));

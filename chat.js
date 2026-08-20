@@ -1,5 +1,5 @@
 // AI assistant: OpenRouter chat that fills the form by emitting a partial record.
-import { flatten, html, raw, DERIVED } from './schema-form.js';
+import { flatten, scalarize, enumOf, html, raw, HIDDEN } from './schema-form.js';
 
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OR_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
@@ -13,21 +13,22 @@ const $ = id => document.getElementById(id);
 // Semantics come from the skill; this is just the shape the <fill> block must take.
 function fieldReference(schema) {
   const { props, required } = flatten(schema);
-  const hidden = new Set(DERIVED);
+  // Unions collapse the same way they do in the form, so the reference describes the
+  // shape the user will actually be shown.
+  const cap = (list, n) => `${list.slice(0, n).join(' | ')}${list.length > n ? ' | …' : ''}`;
   const shape = d => {
-    const b = d.anyOf || d.oneOf || [];
-    const pick = b.find(x => x.properties) || b.find(x => x.type === 'array') || b[0] || d;
-    if (pick.enum) return `one of: ${pick.enum.slice(0, 8).join(' | ')}${pick.enum.length > 8 ? ' | …' : ''}`;
-    if (pick.type === 'array') {
-      const it = pick.items?.anyOf?.[0] || pick.items?.oneOf?.[0] || pick.items || {};
-      if (it.enum) return `array of: ${it.enum.slice(0, 6).join(' | ')}${it.enum.length > 6 ? ' | …' : ''}`;
+    const s = scalarize(d), en = enumOf(d);
+    if (s.type === 'array') {
+      if (en) return `array of: ${cap(en, 6)}`;
+      const it = scalarize(s.items || {});
       return it.properties ? `array of objects {${Object.keys(it.properties).join(', ')}}` : 'array of strings';
     }
-    if (pick.properties) return `object {${Object.keys(pick.properties).join(', ')}}`;
-    return pick.type || 'string';
+    if (en) return `one of: ${cap(en, 8)}`;
+    if (s.properties) return `object {${Object.keys(s.properties).join(', ')}}`;
+    return s.type || 'string';
   };
   return Object.entries(props)
-    .filter(([k]) => !hidden.has(k))
+    .filter(([k]) => !HIDDEN.has(k))
     .map(([k, d]) => `  ${(k + (required.has(k) ? ' *' : '')).padEnd(22)}${shape(d)}`)
     .join('\n');
 }
@@ -40,34 +41,14 @@ const FALLBACK = 'You are a CDH Metadata Assistant embedded in a browser form. N
   'Whenever you know field values, emit them as a partial CDH record inside <fill>{...}</fill>\n' +
   'using real schema keys and nesting. Fields ( * = required):\n{{FIELD_REFERENCE}}';
 
-// Lightweight markdown → HTML (bold, italic, inline code, ordered/unordered lists)
-function mdToHtml(raw) {
-  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const inline = s => s
-    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
-    .replace(/`([^`\n]+)`/g, '<code>$1</code>');
-  let out = '', inOL = false, inUL = false;
-  for (const line of raw.split('\n')) {
-    const e = esc(line.trimEnd());
-    const ol = e.match(/^(\d+)\.\s+(.+)/), ul = e.match(/^[-*]\s+(.+)/);
-    if (ol) {
-      if (!inOL) { if (inUL) { out += '</ul>'; inUL = false; } out += '<ol>'; inOL = true; }
-      out += `<li>${inline(ol[2])}</li>`;
-    } else if (ul) {
-      if (!inUL) { if (inOL) { out += '</ol>'; inOL = false; } out += '<ul>'; inUL = true; }
-      out += `<li>${inline(ul[1])}</li>`;
-    } else {
-      if (inOL) { out += '</ol>'; inOL = false; }
-      if (inUL) { out += '</ul>'; inUL = false; }
-      const t = e.trim();
-      out += t === '' ? '<br>' : inline(t) + '<br>';
-    }
-  }
-  if (inOL) out += '</ol>';
-  if (inUL) out += '</ul>';
-  return out.replace(/(<br>\s*)+$/, '');
-}
+// Bold, italic, inline code. Escaping comes first, so nothing the model writes can
+// become an element. ponytail: `.bubble` is pre-wrap, so newlines and "- item" lines
+// keep their shape without a list parser.
+const mdToHtml = text => text
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+  .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+  .replace(/`([^`\n]+)`/g, '<code>$1</code>');
 
 export function initChat({ form, schema, setStatus, act }) {
   let history = [], busy = false, SYS = null;
@@ -150,7 +131,7 @@ export function initChat({ form, schema, setStatus, act }) {
   }
 
   const snapshot = () => {
-    const rec = Object.fromEntries(Object.entries(form.record()).filter(([k]) => !DERIVED.includes(k)));
+    const rec = Object.fromEntries(Object.entries(form.record()).filter(([k]) => !HIDDEN.has(k)));
     return Object.keys(rec).length
       ? `\n\n[CURRENT FORM STATE — already filled by the user. Do NOT overwrite these unless asked. Fill only what is missing.]\n${JSON.stringify(rec, null, 2)}`
       : '';

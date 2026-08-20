@@ -110,7 +110,7 @@ function prune(o) {
 // ── Schema node inspection ──────────────────────────────────────────────────────
 // Collapse anyOf/oneOf unions of scalars (string|number, the four date precisions)
 // down to one branch, keeping the parent's prose and examples.
-function scalarize(def) {
+export function scalarize(def) {
   const branches = def.anyOf || def.oneOf;
   if (!branches) return def;
   const objs = branches.filter(b => b.properties || b.type === 'object');
@@ -146,7 +146,7 @@ function tupleForms(def) {
   return { forms, repeatable };
 }
 
-function enumOf(def) {
+export function enumOf(def) {
   const d = scalarize(def);
   return d.enum || (d.items && scalarize(d.items).enum) || null;
 }

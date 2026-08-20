@@ -77,6 +77,14 @@ export const SECTIONS = [
 
 export const TEXTAREA = new Set(['description', 'note', 'access_note', 'reason', 'citation']);
 
+// Keys whose `examples` are the values people actually mean rather than an illustration
+// of the format. These render as a <select> with an "Other…" escape hatch: the list is
+// what you want 90% of the time, and the schema still allows anything. Everything else
+// keeps its datalist — `id` or `temporal.date` examples show a shape, not a vocabulary.
+// A <select> also sidesteps Firefox refusing to open a datalist on a field its address
+// autofill has claimed (bugzilla 1823512), which is what organization ran into.
+export const SOFT_ENUM = new Set(['organization']);
+
 // Chips show a closed set at a glance; a datalist is the only sane way to offer
 // hundreds. The exact cut barely matters: this schema's enum arrays are 5 and 7
 // (roles, domain) versus 59 and 278 (commodities, geography), so anything from 8
@@ -278,7 +286,7 @@ export function createForm({
   // because it never builds a string. A datalist option carries the value only — a
   // browser renders a differing label beside it, so keep them empty.
   const options = (values, dflt) => values.map(v => new Option(v, v, v === dflt, v === dflt));
-  const listOptions = values => values.map(v => new Option(v));
+  const listOptions = values => values.map(v => new Option('', v));
 
   // The record as the schema wants to see it: user data over derived bookkeeping.
   const record = () => ({ ...derive(data), ...data });
@@ -349,6 +357,7 @@ export function createForm({
     const why = unsupportedReason(raw);
     if (why) return el('div', 'hint', `${why} — needs a branch in widget()`);
     if (d.enum) return select(d.enum, path, d.default);
+    if (SOFT_ENUM.has(key) && d.examples?.length > 1) return softEnum(d, path);
     if (d.type === 'boolean') return checkbox(path);
     if (d.type === 'number' || d.type === 'integer') return scalar(key, d, path, 'number');
     if (d.type === 'array') return array(key, d, path, raw, req);
@@ -372,6 +381,42 @@ export function createForm({
     });
     n.addEventListener('blur', () => { touched.add(path); revalidate(); });
     return n;
+  }
+
+  // Sentinel for the escape-hatch option. Not a value any schema would allow, so it can
+  // never collide with a real one.
+  const OTHER = '\u0000other';
+
+  function softEnum(d, path) {
+    const box = el('div');
+    const sel = el('select');
+    const free = el('input');
+    free.type = 'text';
+    free.placeholder = 'Type a value not in the list';
+    free.classList.add('soft-free');
+
+    const have = getIn(data, path) ?? d.default;
+    // A value loaded from YAML that is not on the list is not wrong — it just starts on
+    // the free-text side, with the list still one change away.
+    const listed = have != null && d.examples.includes(have);
+    sel.append(new Option('—', ''), ...options(d.examples, d.default), new Option('Other…', OTHER));
+    sel.value = have == null ? '' : listed ? have : OTHER;
+    free.value = listed || have == null ? '' : have;
+    free.hidden = sel.value !== OTHER;
+    if (have != null) sel.classList.add('filled');
+
+    const commit = v => { set(path, v); sel.classList.toggle('filled', !!v); };
+    sel.addEventListener('change', () => {
+      touched.add(path);
+      free.hidden = sel.value !== OTHER;
+      if (!free.hidden) free.focus();
+      commit(free.hidden ? sel.value : free.value.trim());
+    });
+    free.addEventListener('input', () => commit(free.value.trim()));
+    free.addEventListener('blur', () => { touched.add(path); revalidate(); });
+
+    box.append(sel, free);
+    return box;
   }
 
   function select(en, path, dflt) {

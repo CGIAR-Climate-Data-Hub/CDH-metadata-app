@@ -8,7 +8,7 @@ import fs from 'node:fs';
 const APP = new URL('.', import.meta.url).pathname;
 const SPEC = process.env.CDH_SPEC || new URL('../metadata', import.meta.url).pathname;
 
-const { flatten, extensionRules, schemaVersion, unsupportedReason, SECTIONS, HIDDEN, TEXTAREA } =
+const { flatten, extensionRules, schemaVersion, unsupportedReason, SECTIONS, HIDDEN, TEXTAREA, SOFT_ENUM } =
   await import(`${APP}/schema-form.js`);
 
 const where = process.env.CDH_SCHEMA || `${SPEC}/spec/schemas/profiles/cdh.schema.bundled.json`;
@@ -69,8 +69,23 @@ const dead = [
   ...[...grouped.keys()].filter(k => !known.has(k)).map(k => `SECTIONS "${grouped.get(k)}" → ${k}`),
   ...[...HIDDEN].filter(k => !known.has(k) && k !== '$schema').map(k => `HIDDEN → ${k}`),
   ...[...TEXTAREA].filter(k => !nested.has(k)).map(k => `TEXTAREA → ${k}`),
+  ...[...SOFT_ENUM].filter(k => !nested.has(k)).map(k => `SOFT_ENUM → ${k}`),
 ];
 if (dead.length) { say('DEAD  ', `config points at properties the schema no longer has:\n         ${dead.join('\n         ')}`); todo++; }
+
+// ── 3b. SOFT_ENUM keys that have nothing to offer ─────────────────────────────────
+// Without examples the <select> would hold only "—" and "Other…", so say so rather than
+// render a list of nothing.
+const noExamples = [];
+walk({ properties: props }, def => {
+  for (const [k, v] of Object.entries(def.properties || {})) {
+    if (SOFT_ENUM.has(k) && !(v.examples?.length > 1)) noExamples.push(k);
+  }
+});
+if (noExamples.length) {
+  say('THIN  ', `SOFT_ENUM keys with fewer than two examples: ${[...new Set(noExamples)].join(', ')}`);
+  todo++;
+}
 
 // ── 4. Shapes the generator can't render ──────────────────────────────────────────
 // Tuples render positionally; without slot titles the inputs are labelled by index.

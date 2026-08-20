@@ -9,6 +9,15 @@ const SKILL_URL = 'https://raw.githubusercontent.com/CGIAR-Climate-Data-Hub/skil
 
 const $ = id => document.getElementById(id);
 
+// A fill naming spatial.geography must not take spatial.bbox with it, so nested objects
+// merge key by key. Arrays replace whole — merging them by index would corrupt a bbox.
+const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+const merge = (a, b) => {
+  const out = { ...a };
+  for (const [k, v] of Object.entries(b)) out[k] = isObj(v) && isObj(a[k]) ? merge(a[k], v) : v;
+  return out;
+};
+
 // The field reference is generated from the schema, so it can never drift from it.
 // Semantics come from the skill; this is just the shape the <fill> block must take.
 function fieldReference(schema) {
@@ -126,7 +135,11 @@ export function initChat({ form, schema, setStatus, act }) {
     if (!block) return false;
     let json;
     try { json = JSON.parse(block[1]); } catch (e) { console.warn('[CDH] fill parse error', e); return false; }
-    form.setData({ ...form.data, ...json });
+    if (!isObj(json)) { console.warn('[CDH] fill is not an object'); return false; }
+    // The derived keys are never sent to the AI, so they are not its to write either:
+    // record() lets data win over derive(), so a stray $schema or created would stick.
+    for (const k of HIDDEN) delete json[k];
+    form.setData(merge(form.data, json));
     return true;
   }
 

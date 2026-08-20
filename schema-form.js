@@ -389,8 +389,11 @@ export function createForm({
     const en = enumOf(d);
     // An enum is a constraint; `examples` are only suggestions. Both are worth offering
     // as a datalist, but only an enum makes a value that is not in the list wrong.
+    // `examples` on the array are whole-array examples ([["a","b"]]), so flatten one
+    // level and keep the scalars — otherwise the whole list becomes one option.
     const items = scalarize(d.items || {});
-    const suggest = en ?? items.examples ?? d.examples;
+    const suggest = en ?? items.examples
+      ?? d.examples?.flat().filter(v => v != null && typeof v !== 'object');
     const box = el('div');
     const tags = el('div', 'tags');
     const row = el('input', 'tag-input');
@@ -583,7 +586,12 @@ export function createForm({
   const LEAF = new Set(['enum', 'pattern', 'type', 'required', 'minLength', 'maxLength',
     'minItems', 'maxItems', 'format', 'const', 'contains', 'uniqueItems', 'minimum',
     'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'not', 'dependentRequired',
-    'dependentSchemas', 'propertyNames', 'multipleOf', 'maxContains', 'minContains']);
+    'dependentSchemas', 'propertyNames', 'multipleOf', 'maxContains', 'minContains',
+    'minProperties', 'maxProperties',
+    // Names the offending key, so a record from before a rename says what is misplaced
+    // rather than just failing. unevaluatedProperties stays out: it cascades over every
+    // property once an allOf branch fails.
+    'additionalProperties']);
 
   // An error inside an array item (#/spatial/geography/0) belongs to the field that
   // renders the array, so walk up to the nearest registered pointer.
@@ -634,6 +642,11 @@ export function createForm({
   // strings ("String does not match pattern"), so lean on the schema's own
   // annotations (examples, title) to say something a human can act on.
   function message(e, f, path, rec) {
+    if (e.keyword === 'additionalProperties') {
+      const key = /"([^"]+)"/.exec(e.error)?.[1];
+      return key ? `"${key}" is not a field here — it may have moved or been renamed`
+        : clean(e);
+    }
     if ((e.keyword === 'pattern' || e.keyword === 'format') && f.d.examples?.length)
       return `must look like: ${f.d.examples.slice(0, 3).join(', ')}`;
     if (e.keyword === 'enum') {

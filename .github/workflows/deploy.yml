@@ -15,14 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-      # Ship only what the browser needs.
-      - run: |
-          mkdir -p _site
-          rsync -a --exclude '.git' --exclude '.github' --exclude 'check-schema.mjs' --exclude 'node_modules' \
-                --exclude '_site' ./ _site/
-          ls _site
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: '_site'
+          path: "."
       - id: deployment
         uses: actions/deploy-pages@v4

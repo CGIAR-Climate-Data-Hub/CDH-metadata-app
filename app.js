@@ -1,5 +1,6 @@
 // Wiring: fetch the schema, build the form, YAML preview, validation panel.
 import { createForm, flatten, schemaVersion, html, raw, DERIVED } from './schema-form.js';
+import isSpdx from './vendor/spdx-expression-validate.mjs';
 import { initChat } from './chat.js';
 import { initSubmit } from './submit.js';
 
@@ -12,7 +13,6 @@ const SCHEMA_URL = `${BASE}/schemas/profiles/cdh.schema.bundled.json`;
 // app reads them from the release it pinned rather than keeping a copy. If the import
 // fails the panel says the rules did not load and the pull request still runs them.
 const CHECKS_URL = `${BASE}/checks/cross-field.js`;
-const SPDX_URL = 'https://esm.sh/spdx-expression-validate@2';
 // A long form and no persistence meant a refresh threw the work away.
 const DRAFT_KEY = 'cdh_draft';
 // Taken from the schema that loaded, not from the URL: if the two ever disagree the
@@ -52,14 +52,10 @@ function toYAML() {
 let checksNote = '';
 async function loadCrossFieldChecks() {
   try {
-    const [mod, spdx] = await Promise.all([
-      import(CHECKS_URL),
-      import(SPDX_URL).then(m => m.default, () => null),
-    ]);
+    const mod = await import(CHECKS_URL);
     const run = mod.default ?? mod.checkCrossFieldRules;
     if (typeof run !== 'function') throw new Error('no checkCrossFieldRules export');
-    checksNote = spdx ? '' : 'the SPDX expression check could not load';
-    return rec => run(rec, { isSpdx: spdx ?? (() => true) });
+    return rec => run(rec, { isSpdx });
   } catch (err) {
     checksNote = 'the cross-field rules (duplicate asset names, href_template tokens, '
       + 'join fields, SPDX grammar) could not load — they run on the pull request, not here';

@@ -23,7 +23,7 @@ schema-form.js    the generator: schema → DOM, with per-field live validation
 chat.js           AI assistant (OpenRouter); fills the form by emitting a partial record
 prompt.md         the AI's form-specific instructions — plain prose, edit without touching JS
 submit.js         triggers the catalog repo's workflow_dispatch, which opens the PR
-vendor/           @cfworker/json-schema (the validator)
+vendor/           @cfworker/json-schema (the validator), spdx-expression-validate
 check-schema.mjs  reports what a spec release owes the app (not shipped to the site)
 ```
 

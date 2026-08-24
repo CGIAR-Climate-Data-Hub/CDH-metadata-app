@@ -6,6 +6,7 @@ const OR_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 const getKey = () => localStorage.getItem('or_api_key') || '';
 const getModel = () => localStorage.getItem('or_model') || OR_MODEL;
 const SKILL_URL = 'https://raw.githubusercontent.com/CGIAR-Climate-Data-Hub/skills/main/.agents/skills/cdh-metadata/SKILL.md';
+const TEMPLATE_URL = 'https://raw.githubusercontent.com/CGIAR-Climate-Data-Hub/skills/main/.agents/skills/cdh-metadata/references/cdh-annotated-template.md';
 
 const $ = id => document.getElementById(id);
 
@@ -76,12 +77,15 @@ export function initChat({ form, schema, setStatus, act }) {
         return null;
       }
     };
-    const [override, skill] = await Promise.all([get(PROMPT_URL, 'prompt.md'), get(SKILL_URL, 'skill')]);
+    const [override, skill, template] = await Promise.all(
+      [get(PROMPT_URL, 'prompt.md'), get(SKILL_URL, 'skill'), get(TEMPLATE_URL, 'template')]);
     SYS = (override ?? FALLBACK).replace('{{FIELD_REFERENCE}}', fieldReference(schema)) + '\n' +
-      (skill ?? 'Follow the CDH metadata standard.');
-    el.textContent = override && skill ? '✓ Prompt + skill loaded'
+      (skill ?? 'Follow the CDH metadata standard.') +
+      (template ? '\n\n━━━ FULL ANNOTATED FIELD TEMPLATE (ground truth for field shapes — never invent one) ━━━\n' + template : '');
+    el.textContent = override && skill && template ? '✓ Prompt + skill + template loaded'
+      : override && skill ? '⚠ Template offline (extension blocks may be guessed)'
       : override ? '⚠ Skill offline' : '⚠ Using built-in prompt';
-    if (!override || !skill) el.style.color = '#f57c00';
+    if (!override || !skill || !template) el.style.color = '#f57c00';
   })();
 
   // The settings modal is OpenRouter's own config, so it lives with the client.
@@ -129,18 +133,34 @@ export function initChat({ form, schema, setStatus, act }) {
     box.scrollTop = box.scrollHeight;
   }
 
-  // The AI speaks the record, so filling the form is one call.
+  // The AI speaks the record, so filling the form is one call. Returns the parsed keys it
+  // wrote (so the caller can check just those against the schema) or null if nothing filled.
   function applyFill(text) {
     const block = text.match(/<fill>([\s\S]*?)<\/fill>/) || text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-    if (!block) return false;
+    if (!block) return null;
     let json;
-    try { json = JSON.parse(block[1]); } catch (e) { console.warn('[CDH] fill parse error', e); return false; }
-    if (!isObj(json)) { console.warn('[CDH] fill is not an object'); return false; }
+    try { json = JSON.parse(block[1]); } catch (e) { console.warn('[CDH] fill parse error', e); return null; }
+    if (!isObj(json)) { console.warn('[CDH] fill is not an object'); return null; }
     // The derived keys are never sent to the AI, so they are not its to write either:
     // record() lets data win over derive(), so a stray $schema or created would stick.
     for (const k of HIDDEN) delete json[k];
     form.setData(merge(form.data, json));
-    return true;
+    return json;
+  }
+
+  // The model can still hallucinate a field name, an enum value, or a wrong shape despite
+  // FIELD_REFERENCE and the skill. Rather than trust the JSON on faith, run it through the
+  // exact same JSON Schema validator the form itself uses (form.validate()) and only trust
+  // what survives. This is the schema-level backstop — the equivalent of validating an LLM's
+  // structured output against a Pydantic model, just reusing the JSON Schema already pinned
+  // for the form instead of a second, hand-maintained model that could drift from it.
+  function checkFill(json) {
+    const { perField } = form.validate();
+    const topKeys = Object.keys(json);
+    const flagged = [...perField.entries()]
+      .filter(([path]) => topKeys.some(k => path === `#/${k}` || path.startsWith(`#/${k}/`)))
+      .map(([, msg]) => msg);
+    return [...new Set(flagged)];
   }
 
   const snapshot = () => {
@@ -203,9 +223,14 @@ export function initChat({ form, schema, setStatus, act }) {
       }
       const reply = (await res.json()).choices?.[0]?.message?.content || '(empty response)';
       history.push({ role: 'assistant', content: reply });
-      const filled = applyFill(reply);
-      addMsg('assistant', reply, filled);
-      setStatus(filled ? 'AI updated the form.' : 'Ready.');
+      const json = applyFill(reply);
+      const filled = !!json;
+      const problems = filled ? checkFill(json) : [];
+      const warning = problems.length
+        ? `\n\n⚠ The schema flags ${problems.length} of the value${problems.length > 1 ? 's' : ''} just filled: ${problems.join('; ')}`
+        : '';
+      addMsg('assistant', reply + warning, filled);
+      setStatus(problems.length ? 'AI updated the form — some values need a look.' : filled ? 'AI updated the form.' : 'Ready.');
     } catch (err) {
       addMsg('assistant', `⚠ ${err.message}`, false, true);
       setStatus('Error — see chat.');

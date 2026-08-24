@@ -1,0 +1,242 @@
+// Wiring: fetch the schema, build the form, YAML preview, validation panel.
+import { createForm, flatten, schemaVersion, html, raw, DERIVED } from './schema-form.js';
+import isSpdx from './vendor/spdx-expression-validate.mjs';
+import { initChat } from './chat.js';
+import { initSubmit } from './submit.js';
+
+// Bumping a release is this one line. Everything else — the checks URL, the version the
+// UI shows, the draft key — comes from here or from the schema that actually loaded.
+const VERSION = 'v0.3.0';
+const BASE = `https://cgiar-climate-data-hub.github.io/cdh-metadata-standard/${VERSION}`;
+const SCHEMA_URL = `${BASE}/schemas/profiles/cdh.schema.bundled.json`;
+// The standard's own cross-field rules, published with the schema since v0.3.0, so the
+// app reads them from the release it pinned rather than keeping a copy. If the import
+// fails the panel says the rules did not load and the pull request still runs them.
+const CHECKS_URL = `${BASE}/checks/cross-field.js`;
+// A long form and no persistence meant a refresh threw the work away.
+const DRAFT_KEY = 'cdh_draft';
+// Taken from the schema that loaded, not from the URL: if the two ever disagree the
+// record is stamped with what was actually read, and the mismatch is reported below.
+let SCHEMA_VERSION = VERSION;
+
+const $ = id => document.getElementById(id);
+// The status bar is where actions report. Nothing writes it on every keystroke, so
+// whatever last spoke stays put — the field errors and the Validate button cover live state.
+const setStatus = msg => { $('status').textContent = msg; };
+
+const ICON = {
+  ok: `<svg class="val-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  err: `<svg class="val-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+};
+
+let form = null;
+
+// ── YAML ────────────────────────────────────────────────────────────────────────
+// Keys come out in the form's own reading order, so the same record always
+// serialises identically. ponytail: no separate canonical-order list to maintain.
+function ordered(rec) {
+  const order = [...DERIVED, ...form.sections.flatMap(s => s.keys)];
+  const rank = k => (order.indexOf(k) + 1 || order.length + 1);
+  return Object.fromEntries(Object.entries(rec).sort(([a], [b]) => rank(a) - rank(b)));
+}
+
+function toYAML() {
+  const rec = ordered(form.record());
+  const body = jsyaml.dump(rec, { indent: 2, lineWidth: 100, noRefs: true, skipInvalid: true });
+  return `# yaml-language-server: $schema=../../spec/schemas/profiles/cdh.schema.json\n${body}`;
+}
+
+// ── The checks the schema cannot express ────────────────────────────────────────
+// Absent until a release publishes them, so this degrades to "not run" rather than
+// pretending a record is clean. checksNote says which state we are in.
+let checksNote = '';
+async function loadCrossFieldChecks() {
+  try {
+    const mod = await import(CHECKS_URL);
+    const run = mod.default ?? mod.checkCrossFieldRules;
+    if (typeof run !== 'function') throw new Error('no checkCrossFieldRules export');
+    return rec => run(rec, { isSpdx });
+  } catch (err) {
+    checksNote = 'the cross-field rules (duplicate asset names, href_template tokens, '
+      + 'join fields, SPDX grammar) could not load — they run on the pull request, not here';
+    console.warn('[CDH] cross-field checks unavailable:', err.message);
+    return null;
+  }
+}
+
+// ── Load an existing record ─────────────────────────────────────────────────────
+// The bookkeeping keys are re-derived rather than trusted: a record authored against
+// an older release gets this app's pinned version, which is also why the
+// version-mismatch failure mode cannot survive a round-trip. `created` is kept.
+// Stored per schema version: a draft written against an older release would only
+// half-load, and silently dropping the unknown half is worse than starting clean.
+// `pristine` is a fresh form's data, which is not empty -- the schema's defaults land
+// in it -- so without comparing against it, Clear would re-save a draft of nothing and
+// the next visit would claim you had unsaved work.
+let keepDrafts = false;
+let pristine = '{}';
+function saveDraft() {
+  if (!keepDrafts) return;
+  try {
+    const data = form.data;
+    if (JSON.stringify(data) !== pristine) localStorage.setItem(DRAFT_KEY, JSON.stringify({ version: SCHEMA_VERSION, data }));
+    else localStorage.removeItem(DRAFT_KEY);
+  } catch (err) {
+    keepDrafts = false;                       // quota or private mode; stop trying
+    console.warn('[CDH] draft not saved:', err.message);
+  }
+}
+function readDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    if (d?.version !== SCHEMA_VERSION || !d.data) return null;
+    return JSON.stringify(d.data) === pristine ? null : d.data;
+  } catch { return null; }
+}
+
+function loadYAML(text) {
+  const doc = jsyaml.load(text);
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new Error('not a YAML mapping');
+  const { $schema, cdh_schema_version, extensions, updated, ...rec } = doc;
+  form.setData(rec);
+  // Keys this schema has no property for would vanish from the form while still
+  // reaching the record, so say so — the validator rejects them as unevaluated.
+  const known = new Set(Object.keys(flatten(schema).props));
+  return { fields: Object.keys(rec).length, unknown: Object.keys(rec).filter(k => !known.has(k)) };
+}
+
+// ── Modals ──────────────────────────────────────────────────────────────────────
+const open = id => $(id).showModal();
+const close = id => $(id).close();
+
+const actions = {
+  openModal() {
+    $('yaml-out').textContent = toYAML();
+    $('val-summary-bar').style.display = 'none';
+    $('val-results').style.display = 'none';
+    open('modal');
+  },
+  closeModal: () => close('modal'),
+  closeSubmitModal: () => close('submit-modal'),
+
+  copyYAML() {
+    navigator.clipboard.writeText($('yaml-out').textContent)
+      .then(() => setStatus('YAML copied to clipboard.'));
+  },
+
+  dlYAML() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([$('yaml-out').textContent], { type: 'text/yaml' }));
+    a.download = `${form.record().id || 'metadata'}.yaml`;
+    a.click();
+  },
+
+  clearAll() {
+    if (!confirm('Clear all form fields?')) return;
+    form.clear();
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* nothing to remove */ }
+    setStatus('Form cleared.');
+  },
+
+  // Every rule comes from the schema — nothing to restate here.
+  //
+  // html`` escapes every interpolated value, so a message quoting a record value can
+  // only ever be text. raw() marks markup we wrote; it is only ever given an icon.
+  runValidation() {
+    const { valid, perField, record } = form.validate();
+    const rows = [...[...perField].map(([p, m]) => [p.replace(/^#\//, ''), m]), ...record.map(m => ['record', m])];
+
+    const bar = $('val-summary-bar');
+    bar.className = `val-summary ${valid ? 'ok' : 'err'}`;
+    bar.style.display = 'flex';
+    bar.replaceChildren(html`${raw(valid ? ICON.ok : ICON.err)} ${valid
+      ? `Record passes ${checksNote ? 'every check that runs here' : 'the CDH profile'} — ready to submit`
+      : `${rows.length} problem${rows.length === 1 ? '' : 's'} to fix before submission`}`);
+
+    const section = html`<div class="val-section">
+      ${raw(rows.length ? '<h4>Validation</h4>' : '')}<div class="val-list"></div>
+    </div>`;
+    const list = section.querySelector('.val-list');
+    for (const [where, msg] of rows) {
+      list.append(html`<div class="val-row fail">${raw(ICON.err)}<span><strong>${where}:</strong> ${msg}</span></div>`);
+    }
+    if (!rows.length) list.append(html`<div class="val-row pass">${raw(ICON.ok)} All checks passed.</div>`);
+
+    const res = $('val-results');
+    res.style.display = 'block';
+    res.replaceChildren(section);
+    if (checksNote) res.append(html`<div class="val-section"><div class="tip">${checksNote}</div></div>`);
+
+    setStatus(valid ? 'Validation passed — ready to submit.' : `Validation failed: ${rows.length} problem(s).`);
+    return valid;
+  },
+
+  validateThenSubmit() {
+    $('yaml-out').textContent = toYAML();
+    if (!actions.runValidation()) return;   // errors stay visible in this modal
+    close('modal');
+    actions.openSubmitModal();              // registered by submit.js
+  },
+
+};
+
+const act = (name, fn) => { actions[name] = fn; };
+
+// One delegated listener instead of 22 inline handlers.
+document.addEventListener('click', e => {
+  const hit = e.target.closest('[data-act]');
+  if (hit) return actions[hit.dataset.act]?.();
+  // A click that lands on the dialog itself landed on its backdrop; Escape is the UA's.
+  if (e.target.matches('dialog')) e.target.close();
+});
+$('load-yaml').addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  e.target.value = '';                       // re-selecting the same file must re-fire
+  if (!file) return;
+  if (Object.keys(form.data).length && !confirm(`Replace the current form with ${file.name}?`)) return;
+  try {
+    const { fields, unknown } = loadYAML(await file.text());
+    const { valid, perField, record } = form.validate();
+    const problems = perField.size + record.length;
+    setStatus(`Loaded ${file.name} — ${fields} fields`
+      + (unknown.length ? `, ${unknown.length} not in this schema (${unknown.join(', ')})` : '')
+      + (valid ? '. Valid against the CDH profile.' : `. ${problems} problem(s) to fix.`));
+  } catch (err) {
+    setStatus(`Could not read ${file.name}: ${err.message}`);
+  }
+});
+
+// ── Boot ────────────────────────────────────────────────────────────────────────
+const res = await fetch(SCHEMA_URL);
+if (!res.ok) throw new Error(`Could not load the CDH schema (HTTP ${res.status})`);
+const schema = await res.json();
+
+// The version shown in the header, the AI pill and the YAML dialog is whatever the
+// schema says it is, so a stale label is not possible.
+SCHEMA_VERSION = schemaVersion(schema) ?? VERSION;
+for (const n of document.querySelectorAll('[data-cdh-version]')) n.textContent = SCHEMA_VERSION;
+if (SCHEMA_VERSION !== VERSION) {
+  console.warn(`[CDH] pinned ${VERSION} but the schema declares ${SCHEMA_VERSION}`);
+}
+
+form = createForm({
+  schema,
+  mount: $('form-panel'),
+  extraChecks: await loadCrossFieldChecks(),
+  onChange() {
+    saveDraft();
+    if ($('modal').open) $('yaml-out').textContent = toYAML();
+  },
+});
+
+// Restore before wiring saves, so the empty form does not overwrite the draft first.
+pristine = JSON.stringify(form.data);
+const draft = readDraft();
+if (draft) {
+  form.setData(draft);
+  setStatus(`Restored your unsaved draft (${Object.keys(draft).length} fields). Clear discards it.`);
+}
+keepDrafts = true;
+
+initChat({ form, schema, setStatus, act });
+initSubmit({ form, setStatus, act });

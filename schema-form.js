@@ -136,6 +136,17 @@ function prune(o) {
 export function scalarize(def) {
   const branches = def.anyOf || def.oneOf;
   if (!branches) return def;
+  // A sibling type/items/properties next to anyOf/oneOf means the union is EXTRA
+  // constraints layered on an already-typed schema (e.g. spatial.resolution: "type:
+  // array, items: spatialResolution" plus an anyOf saying "exactly one entry, or an
+  // x+y pair") — not a choice between alternative shapes. Collapsing to one branch
+  // here would silently drop the type/items entirely: the branches carry only
+  // maxItems/contains refinements with no type of their own, so the fallback picked
+  // whichever branch came first and returned it type-less. That turned the widget
+  // dispatch into a bare text input and serialized an array of objects as
+  // "[object Object]" — a real field, silently rendered wrong. Only collapse when the
+  // def has no shape of its own to fall back on.
+  if (def.type || def.properties) return def;
   const objs = branches.filter(b => b.properties || b.type === 'object');
   const scalars = branches.filter(b => !b.properties && b.type !== 'object' && b.type !== 'array');
   // A union mixing scalars and objects (keywords: a bare term OR a linked-vocabulary

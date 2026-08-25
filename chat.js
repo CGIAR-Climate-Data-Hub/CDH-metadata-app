@@ -26,15 +26,28 @@ function fieldReference(schema) {
   // Unions collapse the same way they do in the form, so the reference describes the
   // shape the user will actually be shown.
   const cap = (list, n) => `${list.slice(0, n).join(' | ')}${list.length > n ? ' | …' : ''}`;
-  const shape = d => {
+  // A bare key name for a property that is ITSELF an object or an array of objects
+  // (spatial.resolution, related_publications[].citation, processing[].code) gives no
+  // signal it isn't a plain scalar — that gap is exactly what let fills flatten a nested
+  // shape into a string. One bounded extra level (object/array keys only, not their own
+  // types) closes it for any such field, not just the ones already hit; depth caps at 1
+  // so this can never recurse past two levels regardless of how deep the schema nests.
+  const shape = (d, depth = 0) => {
     const s = scalarize(d), en = enumOf(d);
     if (s.type === 'array') {
       if (en) return `array of: ${cap(en, 6)}`;
       const it = scalarize(s.items || {});
-      return it.properties ? `array of objects {${Object.keys(it.properties).join(', ')}}` : 'array of strings';
+      if (!it.properties) return 'array of strings';
+      if (depth > 0) return `array of objects {${Object.keys(it.properties).join(', ')}}`;
+      const inner = Object.entries(it.properties).map(([k, v]) => `${k}: ${shape(v, depth + 1)}`).join(', ');
+      return `array of objects {${inner}}`;
     }
     if (en) return `one of: ${cap(en, 8)}`;
-    if (s.properties) return `object {${Object.keys(s.properties).join(', ')}}`;
+    if (s.properties) {
+      if (depth > 0) return `object {${Object.keys(s.properties).join(', ')}}`;
+      const inner = Object.entries(s.properties).map(([k, v]) => `${k}: ${shape(v, depth + 1)}`).join(', ');
+      return `object {${inner}}`;
+    }
     return s.type || 'string';
   };
   return Object.entries(props)

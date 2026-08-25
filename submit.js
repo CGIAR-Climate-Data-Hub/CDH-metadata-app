@@ -82,8 +82,11 @@ export function initSubmit({ form, setStatus, act }) {
 
     try {
       setStep('step-dispatch', 'active', `Calling workflow_dispatch on ${CATALOG}…`);
+      // TEMPORARY: submit-record.yml only exists on the `submit` branch so far — revert
+      // to 'main' once that branch is merged, or workflow_dispatch will 404 (the workflow
+      // file has to already exist on whatever ref is dispatched to).
       await gh('POST', `/repos/${CATALOG}/actions/workflows/${WORKFLOW}/dispatches`, {
-        ref: 'main',
+        ref: 'submit',
         inputs: { record_id: id, yaml_content: yaml },
       });
       setStep('step-dispatch', 'done', 'Workflow triggered successfully');

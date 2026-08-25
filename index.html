@@ -136,46 +136,38 @@
   <div class="modal-hd">
     <div>
       <h3>Submit to CDH Catalog</h3>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">Triggers a GitHub Action in <strong>CGIAR-Climate-Data-Hub/cdh-catalog</strong> that creates a PR</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Opens a pre-filled issue on <strong>CGIAR-Climate-Data-Hub/cdh-catalog</strong> — nothing is submitted until you click Submit there</div>
     </div>
     <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" data-act="closeSubmitModal">✕</button>
   </div>
   <div class="modal-body">
     <div class="step-list">
-      <div class="step" id="step-dispatch">
+      <div class="step">
         <div class="step-num">1</div>
         <div class="step-text">
-          <strong>Trigger submission workflow</strong>
-          <small id="step-dispatch-detail">Calls workflow_dispatch on CGIAR-Climate-Data-Hub/cdh-catalog</small>
+          <strong>Review and submit the issue on GitHub</strong>
+          <small>Record <span id="step-record-id">{id}</span> — sign in with your own GitHub account, no token needed</small>
         </div>
       </div>
-      <div class="step" id="step-run">
+      <div class="step">
         <div class="step-num">2</div>
         <div class="step-text">
-          <strong>GitHub Actions creates PR</strong>
-          <small>Writes records/<span id="step-record-id">{id}</span>/{id}.yaml · formats · opens PR · validates</small>
+          <strong>A bot validates it and opens a pull request</strong>
+          <small>Writes records/{id}/{id}.yaml · formats · validates against v0.3.0 · opens PR</small>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <strong>The CDH team reviews and merges</strong>
+          <small>You'll get a comment on the issue linking to the PR</small>
         </div>
       </div>
     </div>
-    <div style="padding:0 18px 14px">
-      <div class="field">
-        <label class="req" for="gh-token">Personal Access Token</label>
-        <input id="gh-token" type="password" placeholder="github_pat_… or ghp_…" autocomplete="off" />
-        <div class="hint">
-          Prefer a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" style="color:var(--blue)">fine-grained token</a>
-          scoped to <strong>CGIAR-Climate-Data-Hub/cdh-catalog</strong> only, with <strong>Actions: read and write</strong>
-          and a short expiry — that is all this submission needs.
-          A <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=CDH+Metadata+Submitter" target="_blank" style="color:var(--blue)">classic token</a>
-          also works but carries <code>repo</code>, which grants write access to every repository you can reach.
-        </div>
-        <label class="chk"><input type="checkbox" id="gh-remember" /> Remember this token in this browser</label>
-        <div class="hint" id="gh-remember-note"></div>
-        <div class="hint" id="gh-forget-row" style="display:none">
-          <button class="btn btn-outline" style="padding:3px 9px;font-size:11px" data-act="forgetToken">Forget stored token</button>
-          Removes it from this browser. To revoke it everywhere, delete it in
-          <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--blue)">GitHub settings</a>.
-        </div>
-      </div>
+    <div id="submit-oversize" style="display:none;padding:0 18px 14px" class="hint">
+      This record is large enough that pre-filling GitHub's form directly may not work reliably in every
+      browser. Clicking below copies the YAML to your clipboard — paste it into the "Full YAML record"
+      field once the GitHub issue opens.
     </div>
     <div id="submit-result" style="display:none;padding:0 18px 14px"></div>
   </div>
@@ -183,7 +175,7 @@
     <button class="btn btn-outline" data-act="closeSubmitModal">Cancel</button>
     <button class="btn btn-success" id="do-submit-btn" data-act="doSubmit">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      Submit
+      Open on GitHub
     </button>
   </div>
 </dialog>

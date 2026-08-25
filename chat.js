@@ -43,6 +43,54 @@ function fieldReference(schema) {
     .join('\n');
 }
 
+// SKILL.md and the template are the canonical, shared docs (Claude Code and other
+// consumers read them whole) — we don't edit those files. Instead we trim OUR OWN copy
+// of the fetched text before it goes in the system prompt, cutting only what this form
+// never needs: content this app's own overrides make moot (Stage 1/3 are skipped,
+// $schema/cdh_schema_version/extensions/created/updated are all HIDDEN — the AI is told
+// never to emit them), pure migration history (old-version breaking-change tables), and
+// shallow/low-novelty field shapes already stated in FIELD_REFERENCE + SKILL.md's own
+// Hard Rules (contacts, citation, keywords, core identity, temporal) — any mistake there
+// still gets caught by checkFill() after the fill. What's kept is exactly the ground
+// truth for the parts most likely to be guessed wrong: spatial.resolution, dimensions/
+// variables/joins, classification, the cdh.usage restructure, climate, and data assets.
+// Fails safe: if a marker isn't found (the upstream doc got reworded), that cut is
+// skipped rather than corrupting the text — this list just needs a look eventually.
+const cut = (text, from, to) => {
+  const s = text.indexOf(from);
+  if (s === -1) return text;
+  const e = to ? text.indexOf(to, s + from.length) : text.length;
+  return e === -1 ? text : text.slice(0, s) + text.slice(e);
+};
+
+function trimSkill(text) {
+  let t = text;
+  t = cut(t, '## Stage 1', '## Stage 2');                                  // file inspection — this app skips it
+  t = cut(t, '## Stage 3', '## Stage 4');                                  // plan confirmation — this app skips it
+  t = cut(t, '**Mandatory header lines:**', '**Hard rules');               // HIDDEN fields' YAML
+  t = cut(t, '**Extension URLs', '## Controlled vocabularies');            // extensions[] is HIDDEN
+  t = cut(t, '## Reference', null);                                        // moot — we inline the template ourselves
+  return t;
+}
+
+function trimTemplate(text) {
+  let t = text;
+  t = cut(t, '# ── Schema declaration', '# ── Series');                    // HIDDEN fields + shallow core identity
+  t = cut(t, '# ── Keywords', '# ── Spatial');                             // shallow: keywords/contact/citation/etc.
+  t = cut(t, '# ── Temporal', '# ── Datacube extension — Dimensions');     // already spelled out in Hard Rules
+  t = cut(t, '# ── Additional links', '```');                              // trivial, low risk
+  t = cut(t, '## Key v0.3.0 breaking changes', null);                      // migration history, not relevant live
+  t = t.replace(
+    '# Full commodity vocab includes: wheat, rice, maize, barley, sorghum, millets, pearl-millet,\n' +
+    '# cassava, potato, sweet-potatoes, yams, common-bean, chickpeas, cowpeas, pigeon-pea, lentils,\n' +
+    '# soybeans, groundnuts, coconuts, oil-palms, sunflower, rapeseed, sesame, sugarcane, sugarbeet,\n' +
+    '# cotton, coffee, robusta-coffee, cocoa, tea, tobacco, banana, plantains, citrus, tomatoes,\n' +
+    '# onions, vegetables, rubber, cattle, buffalo, chickens, goats, swine, sheep, and more.\n',
+    '# Closed vocabulary — see FIELD_REFERENCE; an unlisted value gets flagged after fill, not fatal.\n'
+  );
+  return t;
+}
+
 // The form-specific override that goes in front of the skill. Kept as prose in
 // prompt.md so it can be edited without touching JS — no backtick or ${} escaping.
 // Resolved against this module, not the page, so it survives being moved.
@@ -77,8 +125,10 @@ export function initChat({ form, schema, setStatus, act }) {
         return null;
       }
     };
-    const [override, skill, template] = await Promise.all(
+    const [override, skillRaw, templateRaw] = await Promise.all(
       [get(PROMPT_URL, 'prompt.md'), get(SKILL_URL, 'skill'), get(TEMPLATE_URL, 'template')]);
+    const skill = skillRaw ? trimSkill(skillRaw) : skillRaw;
+    const template = templateRaw ? trimTemplate(templateRaw) : templateRaw;
     SYS = (override ?? FALLBACK).replace('{{FIELD_REFERENCE}}', fieldReference(schema)) + '\n' +
       (skill ?? 'Follow the CDH metadata standard.') +
       (template ? '\n\n━━━ FULL ANNOTATED FIELD TEMPLATE (ground truth for field shapes — never invent one) ━━━\n' + template : '');
@@ -195,33 +245,68 @@ export function initChat({ form, schema, setStatus, act }) {
         ? [...recent.slice(0, -1), { role: 'user', content: recent.at(-1).content + snap }]
         : recent;
 
-      let res;
-      try {
-        res = await fetch(OR_URL, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${getKey()}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': location.href,
-            'X-Title': 'CDH Metadata Generator',
-          },
-          body: JSON.stringify({
-            model: getModel(),
-            messages: [{ role: 'system', content: SYS }, ...messages],
-            max_tokens: 1024,
-            temperature: 0.3,
-          }),
-        });
-      } catch (netErr) {
-        throw new Error(`Network error — cannot reach OpenRouter. (${netErr.message})`);
+      // A rich fill (dimensions/variables, cdh.usage.intended_uses + not_recommended_for)
+      // can run well past a small token budget — that showed up as replies silently cut
+      // off mid-JSON, no closing </fill>, so applyFill() found nothing to parse and the
+      // form just... didn't update, with no error anywhere. call() throws OpenRouter's
+      // own error cases (429/402/network) same as before; truncation is caller's job to
+      // detect via finishReason, since retrying belongs at the sendChat level, not here.
+      async function call(maxTokens) {
+        let res;
+        try {
+          res = await fetch(OR_URL, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${getKey()}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': location.href,
+              'X-Title': 'CDH Metadata Generator',
+            },
+            body: JSON.stringify({
+              model: getModel(),
+              messages: [{ role: 'system', content: SYS }, ...messages],
+              max_tokens: maxTokens,
+              temperature: 0.3,
+            }),
+          });
+        } catch (netErr) {
+          throw new Error(`Network error — cannot reach OpenRouter. (${netErr.message})`);
+        }
+        if (!res.ok) {
+          if (res.status === 429) throw new Error('Rate limit reached (429). The free tier allows ~20 req/min, 50 req/day.');
+          if (res.status === 402) throw new Error('No credits (402). Add credits at openrouter.ai or pick a :free model in ⚙ Settings.');
+          const j = await res.json().catch(() => null);
+          throw new Error(`HTTP ${res.status}: ${j?.error?.message ?? await res.text().catch(() => '')}`);
+        }
+        const data = await res.json();
+        // Some providers pass an upstream failure through as HTTP 200 with an `error`
+        // body instead of a completion — that reads as "(empty response)" otherwise,
+        // which is indistinguishable from the model just declining to say anything.
+        if (data.error) throw new Error(`Provider error: ${data.error.message ?? JSON.stringify(data.error)}`);
+        const choice = data.choices?.[0];
+        return { content: choice?.message?.content ?? '', finishReason: choice?.finish_reason };
       }
-      if (!res.ok) {
-        if (res.status === 429) throw new Error('Rate limit reached (429). The free tier allows ~20 req/min, 50 req/day.');
-        if (res.status === 402) throw new Error('No credits (402). Add credits at openrouter.ai or pick a :free model in ⚙ Settings.');
-        const j = await res.json().catch(() => null);
-        throw new Error(`HTTP ${res.status}: ${j?.error?.message ?? await res.text().catch(() => '')}`);
+
+      // <fill> opened but never closed is the unambiguous truncation signature — the
+      // regex in applyFill() requires the closing tag, so a cut-off reply silently fills
+      // nothing otherwise. finish_reason === 'length' is the same signal from the API
+      // side; either one alone is enough to call it truncated.
+      const looksTruncated = (content, finishReason) =>
+        finishReason === 'length' || (content.includes('<fill>') && !content.includes('</fill>'));
+
+      let { content: reply, finishReason } = await call(4096);
+      if (looksTruncated(reply, finishReason)) {
+        setStatus('Response was cut off — retrying with more room…');
+        ({ content: reply, finishReason } = await call(8192));
       }
-      const reply = (await res.json()).choices?.[0]?.message?.content || '(empty response)';
+      if (!reply) {
+        throw new Error('Empty response from the model — the free endpoint may be overloaded. Try again, or switch models in ⚙ Settings.');
+      }
+      if (looksTruncated(reply, finishReason)) {
+        // Still cut off even at 8192 — say so plainly instead of silently applying a
+        // broken partial fill (applyFill() would just find nothing to parse anyway).
+        reply += '\n\n⚠ This reply was cut off twice in a row even with a larger budget — the model itself may be having trouble, not just running out of room. Try asking for fewer fields at once.';
+      }
       history.push({ role: 'assistant', content: reply });
       const json = applyFill(reply);
       const filled = !!json;

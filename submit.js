@@ -1,6 +1,6 @@
 // Submission: triggers the catalog repo's workflow_dispatch, which opens the PR.
 import { html } from './schema-form.js';
-const CATALOG = 'anaguilarar/cdh-catalog';
+const CATALOG = 'CGIAR-Climate-Data-Hub/cdh-catalog';
 const WORKFLOW = 'submit-record.yml';
 
 const $ = id => document.getElementById(id);

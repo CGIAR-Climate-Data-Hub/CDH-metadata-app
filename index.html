@@ -136,7 +136,7 @@
   <div class="modal-hd">
     <div>
       <h3>Submit to CDH Catalog</h3>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">Triggers a GitHub Action in <strong>anaguilarar/cdh-catalog</strong> that creates a PR</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Triggers a GitHub Action in <strong>CGIAR-Climate-Data-Hub/cdh-catalog</strong> that creates a PR</div>
     </div>
     <button class="btn btn-outline" style="padding:4px 11px;font-size:12px" data-act="closeSubmitModal">✕</button>
   </div>
@@ -146,7 +146,7 @@
         <div class="step-num">1</div>
         <div class="step-text">
           <strong>Trigger submission workflow</strong>
-          <small id="step-dispatch-detail">Calls workflow_dispatch on anaguilarar/cdh-catalog</small>
+          <small id="step-dispatch-detail">Calls workflow_dispatch on CGIAR-Climate-Data-Hub/cdh-catalog</small>
         </div>
       </div>
       <div class="step" id="step-run">
@@ -163,7 +163,7 @@
         <input id="gh-token" type="password" placeholder="github_pat_… or ghp_…" autocomplete="off" />
         <div class="hint">
           Prefer a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" style="color:var(--blue)">fine-grained token</a>
-          scoped to <strong>anaguilarar/cdh-catalog</strong> only, with <strong>Actions: read and write</strong>
+          scoped to <strong>CGIAR-Climate-Data-Hub/cdh-catalog</strong> only, with <strong>Actions: read and write</strong>
           and a short expiry — that is all this submission needs.
           A <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=CDH+Metadata+Submitter" target="_blank" style="color:var(--blue)">classic token</a>
           also works but carries <code>repo</code>, which grants write access to every repository you can reach.

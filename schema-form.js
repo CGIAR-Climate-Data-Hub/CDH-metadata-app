@@ -24,14 +24,14 @@ export function flatten(schema) {
 }
 
 // The published $id is the only authority on which release actually loaded:
-//   https://…/cdh-metadata-standard/v0.3.0/schemas/profiles/… → "v0.3.0"
+//   https://…/cdh-metadata-standard/v0.4.1/schemas/profiles/… → "v0.4.1"
 export const schemaVersion = schema => schema?.$id?.match(/\/(v\d+\.\d+\.\d+)\//)?.[1] ?? null;
 
 // JSON Schema can only say "extensions must contain a string matching this pattern", so
 // the URL the record needs is stored as a regex. Read the literal back out of it — every
 // piece is a fixed substring, so plain string swaps do it, no regex-matching-regex-source:
 //   ^https://…/v[0-9]+\.[0-9]+\.[0-9]+/extensions/cdh/schema\.json$
-//   → https://…/v0.3.0/extensions/cdh/schema.json
+//   → https://…/v0.4.1/extensions/cdh/schema.json
 const VERSION_WILDCARD = 'v[0-9]+\\.[0-9]+\\.[0-9]+';
 const literal = (pattern, ver) => {
   let p = pattern;
@@ -59,17 +59,25 @@ export function extensionRules(schema) {
 
 // The keys cdhBookkeeping() produces: derived, never rendered, never sent to the AI.
 // Exported so app.js and chat.js name them once rather than three times.
-export const DERIVED = ['$schema', 'cdh_schema_version', 'extensions', 'created', 'updated'];
-export const HIDDEN = new Set(DERIVED);
+export const DERIVED = ['cdh_schema_version', 'extensions', 'created', 'updated'];
+// Keys a past release derived and this one must not emit. `$schema` went in v0.4.0:
+// the profile root is unevaluatedProperties:false, so writing it makes the whole record
+// invalid. Still hidden and still stripped, so a v0.3.x draft or a pasted older record
+// loses it rather than carrying it into the output.
+export const RETIRED = ['$schema'];
+export const HIDDEN = new Set([...DERIVED, ...RETIRED]);
 
 // Section grouping. Anything not listed lands in "More fields", so a property added
 // to the schema shows up in the form the day it lands — just ungrouped.
 export const SECTIONS = [
-  { title: 'Identity',        keys: ['id', 'title', 'version', 'series', 'description', 'resource_type', 'keywords', 'note'] },
-  { title: 'Access & rights', keys: ['license', 'access', 'access_note', 'deprecated', 'previous_version'] },
+  { title: 'Identity',        keys: ['id', 'title', 'version', 'series', 'description', 'resource_type', 'keywords', 'note', 'parent'] },
+  { title: 'Access & rights', keys: ['license', 'access', 'access_note', 'deprecated', 'previous_version', 'attribution'] },
   { title: 'Contacts',        keys: ['contact'] },
   { title: 'Citation',        keys: ['doi', 'citation', 'related_publications', 'funding'] },
   { title: 'Coverage',        keys: ['spatial', 'temporal'] },
+  // v0.4.0 folded the datacube extension into core: dimensions and variables now live
+  // inside structures[], so this is a core section rather than an extension branch.
+  { title: 'Data dictionary', keys: ['structures'] },
   { title: 'Data assets',     keys: ['data', 'additional_assets', 'additional_links', 'processing'] },
   // Extension sections are not listed: their titles come from the schema's own
   // allOf branches, so a new extension needs no entry here.
@@ -213,10 +221,20 @@ const asArray = v => Array.isArray(v) ? v : v == null ? [] : [v];
 // Shapes the dispatch table has no branch for. Falling through to a text input renders
 // something plausible and silently loses whatever the field really holds, so the field
 // says so instead. check-schema.mjs walks the whole schema with this before a version bump.
+// A union of two or more object branches that each describe their own properties —
+// citation.authors is {family, given?} OR {organization}. variant() renders these, so
+// they are supported; a branch with no `properties` is still a shape we cannot paint.
+export const isVariant = def => {
+  const branches = def?.anyOf || def?.oneOf || [];
+  const objs = branches.filter(b => b.properties || b.type === 'object');
+  return objs.length > 1 && objs.every(b => b.properties);
+};
+
 export function unsupportedReason(def) {
   if (!def || typeof def !== 'object') return null;
   const branches = def.anyOf || def.oneOf || [];
-  if (branches.filter(b => b.properties || b.type === 'object').length > 1) return 'oneOf of objects';
+  if (branches.filter(b => b.properties || b.type === 'object').length > 1 && !isVariant(def))
+    return 'oneOf of objects without properties';
   if (def.patternProperties) return 'patternProperties (map)';
   if (def.additionalProperties && typeof def.additionalProperties === 'object') return 'open map';
   if (def.$ref) return `unresolved $ref ${def.$ref}`;
@@ -248,11 +266,12 @@ export const html = (parts, ...values) => {
 function cdhBookkeeping(schema) {
   const rules = extensionRules(schema);
   const version = schemaVersion(schema) ?? 'v0.0.0';
-  const profile = (schema.$id || '').replace('.bundled', '');
+  // No `$schema`: v0.4.0 removed the key, and the profile root is
+  // unevaluatedProperties:false, so emitting it rejects the whole record. Editors bind
+  // the profile through the yaml-language-server comment instead.
   return data => {
     const today = new Date().toISOString().slice(0, 10);
     return {
-      $schema: profile,
       cdh_schema_version: version,
       extensions: [...rules.always,
         ...rules.conditional.filter(r => r.keys.some(k => data[k] != null)).map(r => r.url)],
@@ -367,6 +386,8 @@ export function createForm({
     // its first branch, rendering one shape and dropping the others without a word.
     const why = unsupportedReason(raw);
     if (why) return el('div', 'hint', `${why} — needs a branch in widget()`);
+    // Before the scalarize-dependent checks, and on `raw` for the same reason.
+    if (isVariant(raw)) return variant(key, path, raw);
     if (d.enum) return select(d.enum, path, d.default);
     if (SOFT_ENUM.has(key) && d.examples?.length > 1) return softEnum(d, path);
     if (d.type === 'boolean') return checkbox(path);
@@ -636,6 +657,41 @@ export function createForm({
       c.append(field(k, v, `${path}/${k}`, req.has(k)));
     }
     return c;
+  }
+
+  // A union of object shapes — citation.authors is a person {family, given?} or an
+  // organization {organization}. Rendering one branch would drop the other silently, so
+  // the field picks a shape first and then renders that branch as an ordinary group.
+  function variant(key, path, raw) {
+    const branches = (raw.oneOf || raw.anyOf).filter(b => b.properties);
+    // Name a branch by what makes it that branch: its required key, else its first.
+    const name = b => b.title || label((b.required || Object.keys(b.properties))[0]);
+
+    // An existing value already belongs to a branch: the one whose required keys it has.
+    // Falling back to the first branch means a blank field opens on the common shape.
+    const have = getIn(data, path);
+    const match = branches.findIndex(b => (b.required || []).every(k => have?.[k] != null));
+    let current = match >= 0 ? match : 0;
+
+    const box = el('div', 'grp');
+    const sel = el('select', 'variant-pick');
+    sel.append(...branches.map((b, i) => new Option(name(b), String(i))));
+    sel.value = String(current);
+    const body = el('div');
+    const paint = () => body.replaceChildren(group(key, branches[current], path));
+
+    sel.addEventListener('change', () => {
+      // Clear the branch being left, or the record keeps half of each shape and fails
+      // the oneOf for matching two branches at once.
+      for (const k of Object.keys(branches[current].properties)) set(`${path}/${k}`, '');
+      current = Number(sel.value);
+      paint();
+      revalidate();
+    });
+
+    paint();
+    box.append(sel, body);
+    return box;
   }
 
   function group(key, d, path) {

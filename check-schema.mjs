@@ -4,12 +4,15 @@
 //   CDH_SPEC=/path/to/metadata   local spec repo (default ../metadata)
 //   CDH_SCHEMA=<url|path>        check against a specific bundle instead
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const APP = new URL('.', import.meta.url).pathname;
-const SPEC = process.env.CDH_SPEC || new URL('../metadata', import.meta.url).pathname;
+// fileURLToPath, not URL.pathname: on Windows the latter yields "/D:/My%20Folder",
+// which fs cannot read — and any path containing a space breaks the same way.
+const APP = fileURLToPath(new URL('.', import.meta.url));
+const SPEC = process.env.CDH_SPEC || fileURLToPath(new URL('../metadata', import.meta.url));
 
-const { flatten, extensionRules, schemaVersion, unsupportedReason, SECTIONS, HIDDEN, TEXTAREA, SOFT_ENUM } =
-  await import(`${APP}/schema-form.js`);
+const { flatten, extensionRules, schemaVersion, unsupportedReason, SECTIONS, HIDDEN, RETIRED, TEXTAREA, SOFT_ENUM } =
+  await import(new URL('schema-form.js', import.meta.url));
 
 const where = process.env.CDH_SCHEMA || `${SPEC}/spec/schemas/profiles/cdh.schema.bundled.json`;
 const schema = JSON.parse(/^https?:/.test(where)
@@ -27,12 +30,23 @@ console.log(`app     ${Object.keys(props).length} properties, ${required.size} r
 // ── 1. Version pin ───────────────────────────────────────────────────────────────
 // Schemas are only published under versioned dirs, so the app pins one on purpose.
 const ver = schemaVersion(schema);
-for (const f of fs.readdirSync(APP).filter(f => /\.(html|js)$/.test(f))) {
+const versions = (text, re) => new Set([...text.matchAll(re)].map(m => m[1]));
+for (const f of fs.readdirSync(APP).filter(f => /\.(html|js|md)$/.test(f))) {
   const text = fs.readFileSync(`${APP}/${f}`, 'utf8');
-  const pinned = [...new Set([...text.matchAll(/['"\/](v\d+\.\d+\.\d+)['"\/]/g)].map(m => m[1]))];
+  // A version inside quotes or slashes is a pin — it builds a URL or sets the release.
+  const pinned = versions(text, /['"\/](v\d+\.\d+\.\d+)['"\/]/g);
+  // A bare one in prose is usually history ("removed in v0.4.0"), but index.html carried
+  // a stale "validates against v0.3.0" for a whole release precisely because nothing
+  // looked here. Report it without failing, and let a human read the sentence.
+  const prose = [...versions(text, /\b(v\d+\.\d+\.\d+)\b/g)].filter(v => !pinned.has(v));
   // v0.0.0 is the "no version in the $id" sentinel, not a pin.
-  const stale = pinned.filter(v => v !== ver && v !== 'v0.0.0');
+  const stale = [...pinned].filter(v => v !== ver && v !== 'v0.0.0');
   if (stale.length) { say('BUMP  ', `${f} still points at ${stale.join(', ')} — schema is ${ver}`); todo++; }
+  const oldProse = prose.filter(v => v !== ver && v !== 'v0.0.0');
+  if (oldProse.length) {
+    say('TEXT  ', `${f} mentions ${oldProse.join(', ')} in prose — history, or a label nobody updated?`);
+    notes++;
+  }
 }
 
 // ── 2. Properties the app has no opinion about ────────────────────────────────────
@@ -67,7 +81,9 @@ walk({ properties: props }, (def, ptr) => {
 const known = new Set(Object.keys(props));
 const dead = [
   ...[...grouped.keys()].filter(k => !known.has(k)).map(k => `SECTIONS "${grouped.get(k)}" → ${k}`),
-  ...[...HIDDEN].filter(k => !known.has(k) && k !== '$schema').map(k => `HIDDEN → ${k}`),
+  // RETIRED keys are hidden precisely because the schema dropped them — being absent
+  // is the point, not dead config.
+  ...[...HIDDEN].filter(k => !known.has(k) && !RETIRED.includes(k)).map(k => `HIDDEN → ${k}`),
   ...[...TEXTAREA].filter(k => !nested.has(k)).map(k => `TEXTAREA → ${k}`),
   ...[...SOFT_ENUM].filter(k => !nested.has(k)).map(k => `SOFT_ENUM → ${k}`),
 ];
@@ -76,14 +92,20 @@ if (dead.length) { say('DEAD  ', `config points at properties the schema no long
 // ── 3b. SOFT_ENUM keys that have nothing to offer ─────────────────────────────────
 // Without examples the <select> would hold only "—" and "Other…", so say so rather than
 // render a list of nothing.
-const noExamples = [];
+// Judged per key, not per occurrence: SOFT_ENUM matches by name, and the same name can
+// appear twice with different intent — contact.organization carries the CGIAR centre
+// list, author.organization carries one illustration. The renderer falls back to a text
+// input wherever the examples are thin, so only a key with no usable list anywhere is a
+// problem worth reporting.
+const seen = new Map();
 walk({ properties: props }, def => {
   for (const [k, v] of Object.entries(def.properties || {})) {
-    if (SOFT_ENUM.has(k) && !(v.examples?.length > 1)) noExamples.push(k);
+    if (SOFT_ENUM.has(k)) seen.set(k, (seen.get(k) || false) || v.examples?.length > 1);
   }
 });
+const noExamples = [...seen].filter(([, ok]) => !ok).map(([k]) => k);
 if (noExamples.length) {
-  say('THIN  ', `SOFT_ENUM keys with fewer than two examples: ${[...new Set(noExamples)].join(', ')}`);
+  say('THIN  ', `SOFT_ENUM keys with no usable example list anywhere: ${noExamples.join(', ')}`);
   todo++;
 }
 

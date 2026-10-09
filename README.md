@@ -48,7 +48,9 @@ It exits non-zero only when a code change is genuinely needed, and tells you whi
 - **New enum values, descriptions, examples** — nothing to do. `examples` become both the
   placeholder and the error message ("must look like: …"), so wording belongs in the schema,
   not here.
-- **`BUMP`** — a release happened; update the pinned `/vX.Y.Z/` in `SCHEMA_URL`.
+- **`BUMP`** — a release happened; update `VERSION` in `app.js`.
+- **`TEXT`** — a version number sits in prose somewhere. Usually history worth keeping
+  ("removed in v0.4.0"), occasionally a label nobody updated — read the sentence.
 - **`WIDGET`** — a shape with no generic renderer (a `oneOf` of objects, an open map). Add a
   branch to `widget()` in `schema-form.js`. Nothing in the current schema needs one.
 

@@ -42,10 +42,16 @@ This is the only way the form gets populated.
 
 ✅ DO THIS — always, even for partial information:
   Here is what I know about this dataset.
-  <fill>{"id":"chirts-daily","title":"CHIRTS-daily","license":"CC-BY-4.0",
+  <fill>{"id":"chirts-daily","title":"CHIRTS-daily","version":"1","license":"CC-BY-4.0",
   "cdh":{"domain":["climate"]},"spatial":{"bbox":[-180,-90,180,90]},
-  "contact":[{"organization":"UCSB Climate Hazards Center","roles":["licensor"]}]}</fill>
+  "contact":[{"organization":"UCSB Climate Hazards Center","roles":["licensor","maintainer"]}],
+  "citation":{"title":"CHIRTS-daily","authors":[{"organization":"UCSB Climate Hazards Center"}],"date":"2026"}}</fill>
   I still need a data URL.
+
+Three things that record shows and every record needs: `version`; a contact holding
+`maintainer` as well as `licensor`; and either `citation` or `doi`. A citation author is
+an object — `{"family":"Doe","given":"J."}` for a person, `{"organization":"FAO"}` for a
+body — never a plain string.
 
 ❌ NEVER DO THESE (the form will not fill):
   • Raw JSON outside the tags, or inside ```json fences

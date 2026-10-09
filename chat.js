@@ -63,44 +63,39 @@ function fieldReference(schema) {
 // $schema/cdh_schema_version/extensions/created/updated are all HIDDEN — the AI is told
 // never to emit them), pure migration history (old-version breaking-change tables), and
 // shallow/low-novelty field shapes already stated in FIELD_REFERENCE + SKILL.md's own
-// Hard Rules (contacts, citation, keywords, core identity, temporal) — any mistake there
-// still gets caught by checkFill() after the fill. What's kept is exactly the ground
-// truth for the parts most likely to be guessed wrong: spatial.resolution, dimensions/
-// variables/joins, classification, the cdh.usage restructure, climate, and data assets.
+// Hard Rules (contacts, citation, keywords, core identity) — any mistake there still
+// gets caught by checkFill() after the fill. What's kept is exactly the ground truth for
+// the parts most likely to be guessed wrong: structures[] (dimensions/variables/
+// categories/foreign_keys), the cdh.usage shape, climate, and data assets.
 // Fails safe: if a marker isn't found (the upstream doc got reworded), that cut is
-// skipped rather than corrupting the text — this list just needs a look eventually.
-const cut = (text, from, to) => {
+// skipped rather than corrupting the text. It also says so in the console — v0.4.0
+// renamed five of these headings at once and nothing noticed, which is how a trimmer
+// quietly becomes a no-op.
+const cut = (text, from, to, why = '') => {
   const s = text.indexOf(from);
-  if (s === -1) return text;
+  if (s === -1) { console.warn(`[CDH] prompt trim missed "${from}" — upstream doc reworded? (${why})`); return text; }
   const e = to ? text.indexOf(to, s + from.length) : text.length;
-  return e === -1 ? text : text.slice(0, s) + text.slice(e);
+  if (e === -1) { console.warn(`[CDH] prompt trim found "${from}" but not "${to}" — nothing cut (${why})`); return text; }
+  return text.slice(0, s) + text.slice(e);
 };
 
 function trimSkill(text) {
   let t = text;
-  t = cut(t, '## Stage 1', '## Stage 2');                                  // file inspection — this app skips it
-  t = cut(t, '## Stage 3', '## Stage 4');                                  // plan confirmation — this app skips it
-  t = cut(t, '**Mandatory header lines:**', '**Hard rules');               // HIDDEN fields' YAML
-  t = cut(t, '**Extension URLs', '## Controlled vocabularies');            // extensions[] is HIDDEN
-  t = cut(t, '## Reference', null);                                        // moot — we inline the template ourselves
+  t = cut(t, '## Stage 1', '## Stage 2', 'file inspection — this app skips it');
+  t = cut(t, '## Stage 3', '## Stage 4', 'link verification — this app skips it');
+  t = cut(t, '**Mandatory header:**', '### Hard rules', 'HIDDEN fields YAML');
+  t = cut(t, '**Extension URLs', '### Minimal valid record', 'extensions[] is HIDDEN');
+  // Takes the migration table and the Reference section with it, both to the end.
+  t = cut(t, '## Moving a v0.3.0 record', null, 'migration history + inlined reference');
   return t;
 }
 
 function trimTemplate(text) {
   let t = text;
-  t = cut(t, '# ── Schema declaration', '# ── Series');                    // HIDDEN fields + shallow core identity
-  t = cut(t, '# ── Keywords', '# ── Spatial');                             // shallow: keywords/contact/citation/etc.
-  t = cut(t, '# ── Temporal', '# ── Datacube extension — Dimensions');     // already spelled out in Hard Rules
-  t = cut(t, '# ── Additional links', '```');                              // trivial, low risk
-  t = cut(t, '## Key v0.3.0 breaking changes', null);                      // migration history, not relevant live
-  t = t.replace(
-    '# Full commodity vocab includes: wheat, rice, maize, barley, sorghum, millets, pearl-millet,\n' +
-    '# cassava, potato, sweet-potatoes, yams, common-bean, chickpeas, cowpeas, pigeon-pea, lentils,\n' +
-    '# soybeans, groundnuts, coconuts, oil-palms, sunflower, rapeseed, sesame, sugarcane, sugarbeet,\n' +
-    '# cotton, coffee, robusta-coffee, cocoa, tea, tobacco, banana, plantains, citrus, tomatoes,\n' +
-    '# onions, vegetables, rubber, cattle, buffalo, chickens, goats, swine, sheep, and more.\n',
-    '# Closed vocabulary — see FIELD_REFERENCE; an unlisted value gets flagged after fill, not fatal.\n'
-  );
+  t = cut(t, '# ── Schema declaration', '# ── Identity', 'HIDDEN bookkeeping fields');
+  t = cut(t, '# ── Discovery', '# ── Coverage', 'shallow: keywords/series/contacts/citation');
+  // Keeps the minimal record, drops both breaking-change tables and everything after.
+  t = cut(t, '## Key v0.4.x breaking changes', null, 'migration history, not relevant live');
   return t;
 }
 

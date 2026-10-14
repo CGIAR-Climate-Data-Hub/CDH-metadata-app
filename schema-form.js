@@ -24,14 +24,14 @@ export function flatten(schema) {
 }
 
 // The published $id is the only authority on which release actually loaded:
-//   https://…/cdh-metadata-standard/v0.4.1/schemas/profiles/… → "v0.4.1"
+//   https://…/cdh-metadata-standard/v0.5.0/schemas/profiles/… → "v0.5.0"
 export const schemaVersion = schema => schema?.$id?.match(/\/(v\d+\.\d+\.\d+)\//)?.[1] ?? null;
 
 // JSON Schema can only say "extensions must contain a string matching this pattern", so
 // the URL the record needs is stored as a regex. Read the literal back out of it — every
 // piece is a fixed substring, so plain string swaps do it, no regex-matching-regex-source:
 //   ^https://…/v[0-9]+\.[0-9]+\.[0-9]+/extensions/cdh/schema\.json$
-//   → https://…/v0.4.1/extensions/cdh/schema.json
+//   → https://…/v0.5.0/extensions/cdh/schema.json
 const VERSION_WILDCARD = 'v[0-9]+\\.[0-9]+\\.[0-9]+';
 const literal = (pattern, ver) => {
   let p = pattern;

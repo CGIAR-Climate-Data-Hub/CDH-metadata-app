@@ -6,7 +6,7 @@ import { initSubmit } from './submit.js';
 
 // Bumping a release is this one line. Everything else — the checks URL, the version the
 // UI shows, the draft key — comes from here or from the schema that actually loaded.
-const VERSION = 'v0.4.1';
+const VERSION = 'v0.5.0';
 const BASE = `https://cgiar-climate-data-hub.github.io/cdh-metadata-standard/${VERSION}`;
 const SCHEMA_URL = `${BASE}/schemas/profiles/cdh.schema.bundled.json`;
 // The standard's own cross-field rules, published with the schema since v0.3.0, so the
